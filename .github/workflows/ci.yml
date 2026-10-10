@@ -100,8 +100,13 @@ jobs:
         run: |
           Xvfb :99 -screen 0 400x300x24 -nolisten tcp &
           Xvfb :98 -screen 0 1280x800x24 -nolisten tcp &
-          winpr-hash -u rdptest -p testpass123 -f sam > "$RUNNER_TEMP/sam"
-          DISPLAY=:98 freerdp-shadow-cli /port:3389 /sam-file:"$RUNNER_TEMP/sam" \
+          # Ubuntu 24.04 suffixe les binaires FreeRDP 3 (winpr-hash3,
+          # freerdp-shadow-cli3) ; les versions plus récentes non.
+          HASH=$(command -v winpr-hash3 || command -v winpr-hash) || { dpkg -L winpr3-utils | grep bin/; exit 1; }
+          SHADOW=$(command -v freerdp-shadow-cli3 || command -v freerdp-shadow-cli) || { dpkg -L freerdp3-shadow-x11 | grep bin/; exit 1; }
+          "$HASH" -u rdptest -p testpass123 -f sam > "$RUNNER_TEMP/sam"
+          cat "$RUNNER_TEMP/sam"
+          DISPLAY=:98 "$SHADOW" /port:3389 /sam-file:"$RUNNER_TEMP/sam" \
             > "$RUNNER_TEMP/shadow.log" 2>&1 &
           for _ in $(seq 1 30); do
             (exec 3<>/dev/tcp/127.0.0.1/3389) 2>/dev/null && exit 0
