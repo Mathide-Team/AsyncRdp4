@@ -55,3 +55,84 @@ jobs:
           --ignore=tests/test_gtk4_bridges.py
           --ignore=tests/test_gtk4_clipboard_file_download.py
           --ignore=tests/test_gtk4_demo_viewer.py
+
+  integration:
+    # Issue #41 : les 5 fichiers exclus du job Qualité. Non bloquant dans un
+    # premier temps (continue-on-error) ; le job Qualité reste l'exigence.
+    name: Intégration (GTK4 Xvfb, serveur RDP d'essai)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    env:
+      DISPLAY: ":99"
+      GDK_BACKEND: x11
+      LIBGL_ALWAYS_SOFTWARE: "1"
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v7
+
+      - name: Dépendances système (FreeRDP 3, GTK4, Xvfb, serveur shadow)
+        run: |
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            build-essential pkg-config freerdp3-dev libwinpr3-dev \
+            freerdp3-shadow-x11 winpr3-utils \
+            libgtk-4-dev gir1.2-gtk-4.0 gobject-introspection libgirepository1.0-dev \
+            libgirepository-2.0-dev libcairo2-dev \
+            xvfb xclip x11-apps imagemagick
+
+      - name: Installation de uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+
+      - name: Installation de Python
+        run: uv python install
+
+      - name: Installation des dépendances (extras gtk4, gtk4-test)
+        run: uv sync --extra gtk4 --extra gtk4-test
+
+      - name: Provider presse-papier natif (build_gir.py)
+        run: uv run python build_gir.py
+
+      - name: Affichages virtuels et serveur RDP d'essai
+        run: |
+          Xvfb :99 -screen 0 400x300x24 -nolisten tcp &
+          Xvfb :98 -screen 0 1280x800x24 -nolisten tcp &
+          # Ubuntu 24.04 suffixe les binaires FreeRDP 3 (winpr-hash3,
+          # freerdp-shadow-cli3) ; les versions plus récentes non.
+          HASH=$(command -v winpr-hash3 || command -v winpr-hash) || { dpkg -L winpr3-utils | grep bin/; exit 1; }
+          SHADOW=$(command -v freerdp-shadow-cli3 || command -v freerdp-shadow-cli) || { dpkg -L freerdp3-shadow-x11 | grep bin/; exit 1; }
+          "$HASH" -u rdptest -p testpass123 -f sam > "$RUNNER_TEMP/sam"
+          cat "$RUNNER_TEMP/sam"
+          DISPLAY=:98 "$SHADOW" /port:3389 /sam-file:"$RUNNER_TEMP/sam" \
+            > "$RUNNER_TEMP/shadow.log" 2>&1 &
+          for _ in $(seq 1 30); do
+            (exec 3<>/dev/tcp/127.0.0.1/3389) 2>/dev/null && exit 0
+            sleep 1
+          done
+          echo "freerdp-shadow-cli ne répond pas"; cat "$RUNNER_TEMP/shadow.log"; exit 1
+
+      - name: Ponts GTK4 (doublures, numpy)
+        run: >-
+          uv run pytest -v tests/test_gtk4_bridges.py
+          tests/test_gtk4_clipboard_file_download.py tests/test_gtk4_demo_viewer.py
+
+      - name: GTK4 live (Xvfb)
+        env:
+          ASYNCRDP_TEST_GTK4: "1"
+        run: uv run pytest -v tests/test_gtk4_live.py
+
+      - name: Intégration live (freerdp-shadow-cli)
+        env:
+          ASYNCRDP_TEST_HOST: 127.0.0.1
+          ASYNCRDP_TEST_PORT: "3389"
+          ASYNCRDP_TEST_USER: rdptest
+          ASYNCRDP_TEST_PASSWORD: testpass123
+          ASYNCRDP_TEST_NO_DISP: "1"
+        run: uv run pytest -v tests/test_integration_live.py
+
+      - name: Journal du serveur RDP
+        if: always()
+        run: tail -50 "$RUNNER_TEMP/shadow.log" || true

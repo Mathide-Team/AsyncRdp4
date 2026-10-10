@@ -24,7 +24,7 @@ Usage :
         [--no-clipboard] [--drive nom:/chemin/local ...]
         [--ignore-certificate] [--log-level INFO]
 
-Intègre asyncio à la boucle GLib de GTK4 via gbulb — même recette que
+Intègre asyncio à la boucle GLib de GTK4 (gcm_gtk4_asyncio : gi.events, gbulb en repli) — même recette que
 tests/test_gtk4_live.py::test_clipboard_bridge_files_download_from_rdp_via_external_reader
 (seul endroit de ce dépôt où elle avait été vérifiée en conditions
 réelles jusqu'ici, pour la durée d'un seul test — ici pour la durée de
@@ -212,20 +212,14 @@ def main(argv: list[str] | None = None) -> int:
         logger.error("Argument invalide : {}", exc)
         return 2
 
-    # Importé ici seulement (pas en tête de fichier) : gbulb n'est
-    # nécessaire qu'à l'exécution réelle de l'appli, pas pour
-    # parse_args()/build_rdp_options() ni pour la définition de DemoApp —
-    # ça garde ce module importable sans gbulb installé, comme dans
-    # tests/test_gtk4_demo_viewer.py (logique pure, sans display réel).
-    import gbulb
-
-    asyncio.set_event_loop_policy(gbulb.GLibEventLoopPolicy())
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    # Importé ici seulement : l'intégrateur asyncio/GLib (gi.events, ou
+    # gbulb sur un PyGObject ancien) n'est nécessaire qu'à l'exécution
+    # réelle, pas pour parse_args()/build_rdp_options() ni pour DemoApp --
+    # module importable sans display (tests/test_gtk4_demo_viewer.py).
+    from gcm_gtk4_asyncio import run_application
 
     app = DemoApp(args, options)
-    loop.run_forever(application=app, argv=[])
-    return 0
+    return run_application(app)
 
 
 if __name__ == "__main__":
