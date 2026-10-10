@@ -9,6 +9,10 @@ renseigné :
     export ASYNCRDP_TEST_PASSWORD=testpass123
     pytest tests/test_integration_live.py -v
 
+Serveur d'essai sans Windows (job CI « Intégration », issue #41) :
+freerdp-shadow-cli sur un Xvfb, base SAM produite par winpr-hash, et
+ASYNCRDP_TEST_NO_DISP=1 (ce serveur n'ouvre pas le canal Display Control).
+
 Ce fichier reprend, sous forme de vraies assertions pytest, les scénarios
 qui ont été validés manuellement pendant le développement (voir CLAUDE.md
 pour le compte-rendu complet et les bugs trouvés à cette occasion) :
@@ -20,6 +24,7 @@ dédiées pour ce cas.
 """
 
 import asyncio
+import os
 
 import pytest
 
@@ -62,6 +67,10 @@ async def test_input_does_not_raise(connected_client):
 
 @pytest.mark.asyncio
 async def test_resize(connected_client):
+    if os.environ.get("ASYNCRDP_TEST_NO_DISP") == "1":
+        # freerdp-shadow-cli (serveur d'essai de la CI, issue #41) n'ouvre pas
+        # le canal Display Control : redimensionnement impossible côté serveur.
+        pytest.skip("serveur sans canal Display Control (ASYNCRDP_TEST_NO_DISP=1)")
     # Le canal disp (Display Control) se connecte de façon asynchrone,
     # potentiellement juste après que connect() ait rendu la main — on
     # attend qu'il soit prêt plutôt que d'appeler request_resize() à

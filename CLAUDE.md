@@ -377,6 +377,15 @@ La consigne de fond reste inchangée : continuer les features à faire
 sans attendre de décision sur les points bloqués par l'environnement
 (voir `docs/sessions/session-23.md`).
 
+## CI étendue (2026-10-11, issue #41)
+
+Job « Intégration (GTK4 Xvfb, serveur RDP d'essai) » de `ci.yml`, non
+bloquant. Il couvre les ponts GTK4 avec numpy, GTK4 live sur Xvfb (après
+`build_gir.py`) et l'intégration live contre `freerdp-shadow-cli` (SAM via
+`winpr-hash`, `ASYNCRDP_TEST_NO_DISP=1`). L'intégration asyncio/GLib passe
+désormais par `integrations/gtk4/gcm_gtk4_asyncio.py` (gi.events, gbulb en
+repli, gbulb étant cassé sous Python 3.14). Voir `docs/sessions/session-34.md`.
+
 ## Commandes de qualité
 
 Développement de la bibliothèque cœur (venv isolé et reproductible via
