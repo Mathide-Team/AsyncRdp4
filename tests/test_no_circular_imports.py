@@ -239,9 +239,13 @@ def test_import_graph_matches_known_dependencies():
     # référence : dépend réellement de gcm_gtk4_display_bridge (RdpView),
     # gcm_gtk4_rdp_session (RdpSession) et asyncrdp (RdpOptions/
     # DriveMapping/FreeRDPError/connect).
+    # + gcm_gtk4_asyncio (2026-10-11, issue #41) : intégration asyncio/GLib
+    # (gi.events, gbulb en repli), feuille du graphe.
     assert graph["gcm_gtk4_demo_viewer"] == {
-        "gcm_gtk4_display_bridge", "gcm_gtk4_rdp_session", "asyncrdp", "asyncrdp.tracing",
+        "gcm_gtk4_display_bridge", "gcm_gtk4_rdp_session", "gcm_gtk4_asyncio",
+        "asyncrdp", "asyncrdp.tracing",
     }
+    assert graph["gcm_gtk4_asyncio"] == set()
 
 
 # --- La vraie vérification --------------------------------------------

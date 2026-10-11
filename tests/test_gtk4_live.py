@@ -9,7 +9,8 @@ MISE EN PLACE REQUISE (rien de tout cela n'est nécessaire pour le reste
 de la suite — uniquement pour ce fichier) :
 
     apt-get install -y gir1.2-gtk-4.0 xvfb xclip x11-apps imagemagick
-    pip install gbulb  # uniquement pour le test de téléchargement RDP -> local
+    # asyncio/GLib : gi.events (PyGObject >= 3.50) ; gbulb seulement en repli
+    # (gbulb ne s'importe plus sous Python 3.14), voir gcm_gtk4_asyncio.py
     Xvfb :99 -screen 0 400x300x24 -nolisten tcp &
     export DISPLAY=:99 GDK_BACKEND=x11 ASYNCRDP_TEST_GTK4=1
     pytest tests/test_gtk4_live.py -v
@@ -492,7 +493,7 @@ def test_clipboard_bridge_files_download_from_rdp_via_external_reader(gtk4_live_
     Gtk, Gdk, GLib = _require_gtk4()
     import asyncio
 
-    import gbulb
+    from gcm_gtk4_asyncio import run_application
     from gcm_gtk4_clipboard_bridge import ClipboardBridge
 
     from asyncrdp import RemoteFileInfo
@@ -548,14 +549,7 @@ def test_clipboard_bridge_files_download_from_rdp_via_external_reader(gtk4_live_
     app = Gtk.Application(application_id="org.asyncrdp.test.clip.files.download")
     app.connect("activate", on_activate)
 
-    previous_policy = asyncio.get_event_loop_policy()
-    asyncio.set_event_loop_policy(gbulb.GLibEventLoopPolicy())
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_forever(application=app, argv=[])
-    finally:
-        asyncio.set_event_loop_policy(previous_policy)
+    run_application(app)
 
     assert not results.get("timed_out"), "le téléchargement/dépôt presse-papier n'a jamais abouti"
 
@@ -941,8 +935,11 @@ def test_clipboard_image_native_c_provider_delivers_real_png(gtk4_live_enabled, 
     Gtk, Gdk, GLib = _require_gtk4()
     import gi
 
-    gi.require_version("AsyncrdpClipboard", "1.0")
+    # Importer le pont d'abord : c'est lui qui ajoute native/_build au chemin
+    # de recherche des typelibs (_load_native_image_provider).
     from gcm_gtk4_clipboard_bridge import _dib_to_texture
+
+    gi.require_version("AsyncrdpClipboard", "1.0")
     from gi.repository import AsyncrdpClipboard
 
     results = {}
@@ -1032,7 +1029,7 @@ def test_demo_session_assembles_real_window_display_and_clipboard_bridge(gtk4_li
     Gtk, Gdk, GLib = _require_gtk4()
     import asyncio
 
-    import gbulb
+    from gcm_gtk4_asyncio import run_application
 
     RdpView, RdpSession = _import_display_and_session_with_stub_asyncrdp()
 
@@ -1113,14 +1110,7 @@ def test_demo_session_assembles_real_window_display_and_clipboard_bridge(gtk4_li
     app = Gtk.Application(application_id="org.asyncrdp.test.demo.viewer.assembly")
     app.connect("activate", on_activate)
 
-    previous_policy = asyncio.get_event_loop_policy()
-    asyncio.set_event_loop_policy(gbulb.GLibEventLoopPolicy())
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_forever(application=app, argv=[])
-    finally:
-        asyncio.set_event_loop_policy(previous_policy)
+    run_application(app)
 
     assert not results.get("timed_out"), "l'assemblage/désassemblage n'a jamais abouti"
     assert results.get("attached") is True, "RdpView.attach() aurait dû recevoir le client de la session"

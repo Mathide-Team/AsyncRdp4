@@ -95,11 +95,21 @@ def _load_native_image_provider():
         # emplacements système). GIRepository-2.0 lui-même est installé à
         # un emplacement système standard, jamais concerné par ce problème.
         search_path = str(_NATIVE_BUILD_DIR)
-        gi.require_version("GIRepository", "2.0")
-        from gi.repository import GIRepository
+        # PyGObject >= 3.52 s'appuie sur libgirepository-2.0, dont le dépôt
+        # n'est plus un singleton : GIRepository.Repository.
+        # prepend_search_path() n'atteint plus le dépôt utilisé par `gi`
+        # (« Namespace AsyncrdpClipboard not available », constaté le
+        # 2026-10-11 avec PyGObject 3.58, issue #41). Ces versions exposent
+        # le dépôt réellement utilisé : gi.Repository.get_default().
+        pygobject_repo = getattr(gi, "Repository", None)
+        if pygobject_repo is not None and hasattr(pygobject_repo.get_default(), "prepend_search_path"):
+            pygobject_repo.get_default().prepend_search_path(search_path)
+        else:
+            gi.require_version("GIRepository", "2.0")
+            from gi.repository import GIRepository
 
-        if search_path not in GIRepository.Repository.get_search_path():
-            GIRepository.Repository.prepend_search_path(search_path)
+            if search_path not in GIRepository.Repository.get_search_path():
+                GIRepository.Repository.prepend_search_path(search_path)
 
         gi.require_version("AsyncrdpClipboard", "1.0")
         from gi.repository import AsyncrdpClipboard
