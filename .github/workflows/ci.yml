@@ -39,7 +39,7 @@ jobs:
       - name: Lint (ruff check)
         run: uv run ruff check .
 
-      - name: Tests (pytest)
+      - name: Tests et couverture (pytest --cov, seuil lu dans pyproject.toml)
         # Périmètre unitaire documenté dans CLAUDE.md « Commandes de
         # qualité » : les tests d'intégration (vrai serveur RDP),
         # GTK4 live et ponts GTK4 sont exclus — ils exigent un serveur
@@ -50,6 +50,7 @@ jobs:
         # en CI cœur).
         run: >-
           uv run pytest tests/
+          --cov --cov-report=term-missing
           --ignore=tests/test_integration_live.py
           --ignore=tests/test_gtk4_live.py
           --ignore=tests/test_gtk4_bridges.py

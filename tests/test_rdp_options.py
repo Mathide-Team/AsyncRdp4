@@ -1,8 +1,8 @@
 """
 Tests unitaires des dataclasses de configuration — construction, valeurs
 par défaut, pas d'appel réseau. RdpOptions._apply() (qui parle au shim C)
-n'est PAS testée ici : elle nécessite un contexte FreeRDP réel, couvert
-par les tests d'intégration (test_integration_live.py).
+est testée sur un vrai contexte FreeRDP non connecté dans
+test_core_contexte.py (issue #50).
 """
 
 import asyncrdp
@@ -126,8 +126,8 @@ def test_monitor_def():
 def test_rdp_options_multimonitor_bounding_box_inputs():
     """Vérifie seulement que les MonitorDef sont bien stockés tels quels —
     le calcul de la bounding box (largeur/hauteur totales) se fait dans
-    RdpOptions._apply(), testé en intégration (nécessite un contexte
-    FreeRDP réel)."""
+    RdpOptions._apply(), testé sur un vrai contexte FreeRDP dans
+    test_core_contexte.py."""
     opts = asyncrdp.RdpOptions(
         monitors=[
             asyncrdp.MonitorDef(0, 0, 1280, 800, is_primary=True),

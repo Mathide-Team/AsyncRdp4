@@ -16,3 +16,4 @@ dist/
 integrations/gtk4/native/_build/
 *.so
 *.o
+.coverage
