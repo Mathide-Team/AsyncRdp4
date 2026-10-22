@@ -41,7 +41,7 @@ gtk4-test = ["gbulb>=0.6.0", "Pillow"]
 # via libusb, pour construire les chaînes de sélection RdpOptions.usb_devices)
 # — pas une dépendance du cœur de la bibliothèque.
 usb = ["pyusb>=1.2.0"]
-test = ["pytest>=7.0", "pytest-asyncio>=0.21"]
+test = ["pytest>=7.0", "pytest-asyncio>=0.21", "pytest-cov>=7.1.0"]
 
 [project.urls]
 Homepage = "https://github.com/<votre-compte>/asyncrdp"
@@ -58,6 +58,7 @@ dev = [
     "ruff>=0.16.0",
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
+    "pytest-cov>=7.1.0",  # couverture lignes + branches, seuil bloquant (issue #50)
 ]
 
 [tool.setuptools]
@@ -86,3 +87,16 @@ testpaths = ["tests"]
 markers = [
     "integration: nécessite un vrai serveur RDP (voir ASYNCRDP_TEST_HOST)",
 ]
+
+[tool.coverage.run]
+# Couverture des branches obligatoire (SOCLE §4, Mathilde-Team/.github#9).
+branch = true
+source = ["src"]
+
+[tool.coverage.report]
+# Seuil bloquant de l'équipe : 95 % visé (décision du 21/10/2026,
+# Mathilde-Team/.github#9). Palier 1 (issue #50) : mesure du job Qualité au
+# 22/10/2026 (58,25 %) arrondie à l'entier inférieur ; à relever à chaque PR
+# de tests. Déclaré ici seulement, lu par `pytest --cov` dans ci.yml.
+fail_under = 58
+show_missing = true
