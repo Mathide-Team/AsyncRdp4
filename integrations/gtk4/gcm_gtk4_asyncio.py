@@ -17,7 +17,12 @@ from __future__ import annotations
 import asyncio
 import warnings
 
+from loguru import logger
 
+from asyncrdp.tracing import traced
+
+
+@traced
 def run_application(app, argv: list[str] | None = None) -> int:
     """Lance *app* (Gtk.Application) avec asyncio branché sur GLib ; renvoie le code de sortie."""
     argv = [] if argv is None else argv
@@ -28,7 +33,8 @@ def run_application(app, argv: list[str] | None = None) -> int:
         previous = asyncio.get_event_loop_policy()
         try:
             from gi.events import GLibEventLoopPolicy
-        except ImportError:
+        except ImportError as exc:
+            logger.debug("gbulb absent, politique GLib non chargée : {}", exc)
             GLibEventLoopPolicy = None
         try:
             if GLibEventLoopPolicy is not None:

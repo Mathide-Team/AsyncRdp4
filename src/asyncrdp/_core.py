@@ -46,8 +46,8 @@ class FreeRDPError(Exception):
 
 @dataclass
 class DriveMapping:
-    name: str   # nom vu côté serveur (ex: "home")
-    path: str   # chemin local (ex: "/home/mathilde")
+    name: str  # nom vu côté serveur (ex: "home")
+    path: str  # chemin local (ex: "/home/mathilde")
 
 
 @dataclass
@@ -64,6 +64,7 @@ class PrinterMapping:
     publique RdpdrServerContext n'expose d'entrées d'E/S que pour
     Drive* et Smartcard*, rien pour l'imprimante.
     """
+
     name: str
     driver: str | None = None
     is_default: bool = False
@@ -85,8 +86,9 @@ class SerialMapping:
     ici : ce champ est rempli par le plugin de canal FreeRDP chargé via
     freerdp_client_load_addins(), jamais par asyncrdp.
     """
-    name: str   # nom vu côté serveur (ex: "COM1")
-    path: str   # périphérique local (ex: "/dev/ttyS0")
+
+    name: str  # nom vu côté serveur (ex: "COM1")
+    path: str  # périphérique local (ex: "/dev/ttyS0")
 
 
 @dataclass
@@ -99,8 +101,9 @@ class ParallelMapping:
     vide côté client FreeRDP, refusé par le canal serveur FreeRDP avec
     ERROR_INVALID_DATA.
     """
-    name: str   # nom vu côté serveur (ex: "LPT1")
-    path: str   # périphérique local (ex: "/dev/lp0")
+
+    name: str  # nom vu côté serveur (ex: "LPT1")
+    path: str  # périphérique local (ex: "/dev/lp0")
 
 
 @dataclass
@@ -128,7 +131,7 @@ class GatewayOptions:
 
 @dataclass
 class RemoteAppOptions:
-    program: str        # ex: "||notepad" ou chemin complet côté serveur
+    program: str  # ex: "||notepad" ou chemin complet côté serveur
     name: str | None = None
     cmdline: str | None = None
 
@@ -301,7 +304,9 @@ class RdpOptions:
         if self.gateway:
             gw = self.gateway
             ok &= shim.asyncrdp_set_gateway(
-                context, gw.hostname.encode(), gw.port,
+                context,
+                gw.hostname.encode(),
+                gw.port,
                 gw.username.encode() if gw.username else ffi.NULL,
                 gw.password.encode() if gw.password else ffi.NULL,
                 gw.domain.encode() if gw.domain else ffi.NULL,
@@ -312,7 +317,8 @@ class RdpOptions:
         if self.remoteapp:
             ra = self.remoteapp
             ok &= shim.asyncrdp_set_remoteapp(
-                context, ra.program.encode(),
+                context,
+                ra.program.encode(),
                 ra.name.encode() if ra.name else ffi.NULL,
                 ra.cmdline.encode() if ra.cmdline else ffi.NULL,
             )
@@ -339,19 +345,32 @@ class RdpOptions:
                 "voir CLAUDE.md pour le détail)."
             )
             ok &= shim.asyncrdp_set_graphics_pipeline(
-                context, self.enable_graphics_pipeline, self.enable_h264,
-                self.enable_h264_444, self.enable_progressive_codec,
+                context,
+                self.enable_graphics_pipeline,
+                self.enable_h264,
+                self.enable_h264_444,
+                self.enable_progressive_codec,
             )
 
         logger.debug(
             "RdpOptions appliquées : {}x{}@{}bpp, clipboard={} imprimantes={}(+{} nommées) "
             "smartcards={} disques={} série={} parallèle={} usb={} audio(play={},cap={}) "
             "moniteurs={} type_connexion={}",
-            self.width, self.height, self.color_depth,
-            self.redirect_clipboard, self.redirect_printers, len(self.printers),
-            self.redirect_smartcards, [d.name for d in self.drives],
-            len(self.serial_ports), len(self.parallel_ports), len(self.usb_devices),
-            self.audio_playback, self.audio_capture, len(self.monitors), self.connection_type,
+            self.width,
+            self.height,
+            self.color_depth,
+            self.redirect_clipboard,
+            self.redirect_printers,
+            len(self.printers),
+            self.redirect_smartcards,
+            [d.name for d in self.drives],
+            len(self.serial_ports),
+            len(self.parallel_ports),
+            len(self.usb_devices),
+            self.audio_playback,
+            self.audio_capture,
+            len(self.monitors),
+            self.connection_type,
         )
         return bool(ok)
 
@@ -493,11 +512,7 @@ def asyncrdp_on_gfx_ready(ctx, gfx) -> int:
     # potentiellement depuis le thread executor). Si gdi_init a déjà eu
     # lieu (_gdi_ready déjà True), on câble tout de suite ; sinon c'est
     # connect() qui s'en chargera une fois gdi_init fait.
-    if (
-        client._gdi_ready
-        and client._options_wants_gfx
-        and not shim.asyncrdp_init_graphics_pipeline(ctx, gfx)
-    ):
+    if client._gdi_ready and client._options_wants_gfx and not shim.asyncrdp_init_graphics_pipeline(ctx, gfx):
         logger.warning("Échec de l'initialisation tardive du pipeline graphique RDPGFX")
     return 1
 
@@ -566,18 +581,23 @@ def asyncrdp_on_clipboard_data_response(ctx, cliprdr, data, data_len) -> int:
 
 @ffi.def_extern()
 @traced
-def asyncrdp_on_clipboard_file_contents_request(ctx, cliprdr, stream_id, list_index,
-                                                 flags, position_low, position_high,
-                                                 requested_size) -> int:
+def asyncrdp_on_clipboard_file_contents_request(
+    ctx, cliprdr, stream_id, list_index, flags, position_low, position_high, requested_size
+) -> int:
     client = _clients_by_context.get(_ctx_key(ctx))
     if client is None:
         logger.warning("ServerFileContentsRequest reçu pour un contexte inconnu : {:#x}", _ctx_key(ctx))
         return 1
-    logger.debug("Clipboard: ServerFileContentsRequest stream={} index={} flags={}",
-                 stream_id, list_index, flags)
+    logger.debug("Clipboard: ServerFileContentsRequest stream={} index={} flags={}", stream_id, list_index, flags)
     client._loop.call_soon_threadsafe(
         client.clipboard._on_server_file_contents_request,
-        cliprdr, stream_id, list_index, flags, position_low, position_high, requested_size,
+        cliprdr,
+        stream_id,
+        list_index,
+        flags,
+        position_low,
+        position_high,
+        requested_size,
     )
     return 1
 
@@ -591,9 +611,7 @@ def asyncrdp_on_clipboard_file_contents_response(ctx, cliprdr, stream_id, data, 
         return 1
     raw = bytes(ffi.buffer(data, data_len)) if data != ffi.NULL and data_len else b""
     logger.debug("Clipboard: ServerFileContentsResponse stream={}, {} octets", stream_id, len(raw))
-    client._loop.call_soon_threadsafe(
-        client.clipboard._on_server_file_contents_response, stream_id, raw
-    )
+    client._loop.call_soon_threadsafe(client.clipboard._on_server_file_contents_response, stream_id, raw)
     return 1
 
 
@@ -630,6 +648,7 @@ class RemoteFileInfo:
     """Une entrée du dernier FileGroupDescriptorW reçu du serveur —
     métadonnées seules, pas le contenu (voir Client.clipboard pour le
     téléchargement effectif)."""
+
     index: int
     name: str
     size: int
@@ -647,24 +666,26 @@ def _parse_file_group_descriptor(raw: bytes) -> list[RemoteFileInfo]:
     items: list[RemoteFileInfo] = []
     offset = 4
     for i in range(count):
-        chunk = raw[offset:offset + _FILEDESCRIPTOR_SIZE]
+        chunk = raw[offset : offset + _FILEDESCRIPTOR_SIZE]
         if len(chunk) < _FILEDESCRIPTOR_SIZE:
             logger.warning("FileGroupDescriptorW tronqué à l'entrée {}", i)
             break
         # Layout : dwFlags(4) clsid(16) sizel(8) pointl(8) dwFileAttributes(4)
         #          ftCreationTime(8) ftLastAccessTime(8) ftLastWriteTime(8)
         #          nFileSizeHigh(4) nFileSizeLow(4) cFileName(520, WCHAR[260])
-        dw_file_attributes, = struct.unpack_from("<I", chunk, 4 + 16 + 8 + 8)
+        (dw_file_attributes,) = struct.unpack_from("<I", chunk, 4 + 16 + 8 + 8)
         size_high, size_low = struct.unpack_from("<II", chunk, 4 + 16 + 8 + 8 + 4 + 24)
         name_offset = 4 + 16 + 8 + 8 + 4 + 24 + 4 + 4
-        name_raw = chunk[name_offset:name_offset + 520]
+        name_raw = chunk[name_offset : name_offset + 520]
         name = name_raw.decode("utf-16-le", errors="replace").split("\x00", 1)[0]
-        items.append(RemoteFileInfo(
-            index=i,
-            name=name,
-            size=(size_high << 32) | size_low,
-            is_directory=bool(dw_file_attributes & _FILE_ATTRIBUTE_DIRECTORY),
-        ))
+        items.append(
+            RemoteFileInfo(
+                index=i,
+                name=name,
+                size=(size_high << 32) | size_low,
+                is_directory=bool(dw_file_attributes & _FILE_ATTRIBUTE_DIRECTORY),
+            )
+        )
         offset += _FILEDESCRIPTOR_SIZE
     return items
 
@@ -788,13 +809,14 @@ class Clipboard:
         self._background_tasks: set[asyncio.Task] = set()
 
         # Callbacks fournis par l'intégration GTK4 (voir bridge) :
-        self.on_remote_text_changed = None    # Callable[[str], None]
-        self.on_remote_image_changed = None   # Callable[[bytes], None]  (DIB brut)
-        self.on_remote_files_changed = None   # Callable[[list[RemoteFileInfo]], None]
-        self.get_local_text = None            # Callable[[], str]
-        self.get_local_image_dib = None       # Callable[[], bytes | None]
-        self.get_local_files = None           # Callable[[], list[str]]  (chemins)
+        self.on_remote_text_changed = None  # Callable[[str], None]
+        self.on_remote_image_changed = None  # Callable[[bytes], None]  (DIB brut)
+        self.on_remote_files_changed = None  # Callable[[list[RemoteFileInfo]], None]
+        self.get_local_text = None  # Callable[[], str]
+        self.get_local_image_dib = None  # Callable[[], bytes | None]
+        self.get_local_files = None  # Callable[[], list[str]]  (chemins)
 
+    @traced
     def _spawn(self, coro) -> None:
         """Lance `coro` en tâche de fond en gardant une référence forte
         (voir `self._background_tasks` dans `__init__`) jusqu'à sa fin."""
@@ -849,12 +871,10 @@ class Clipboard:
         self._cliprdr = cliprdr
 
         if format_id == self._format_ids.get(CF_FILE_GROUP_DESCRIPTOR_W):
-            paths = (self.get_local_files() if self.get_local_files is not None
-                     else self._pending_local_selection)
+            paths = self.get_local_files() if self.get_local_files is not None else self._pending_local_selection
             data, abs_paths = _pack_file_group_descriptor(paths)
             self._local_files = abs_paths
-            logger.debug("Clipboard: envoi de la liste de {} entrée(s) au serveur (dossiers inclus)",
-                         len(abs_paths))
+            logger.debug("Clipboard: envoi de la liste de {} entrée(s) au serveur (dossiers inclus)", len(abs_paths))
             buf = ffi.new("unsigned char[]", data)
             shim.asyncrdp_clipboard_send_data_response(cliprdr, buf, len(data))
             return
@@ -886,9 +906,16 @@ class Clipboard:
             self._pending_data_request.set_result(raw)
 
     @traced
-    def _on_server_file_contents_request(self, cliprdr, stream_id: int, list_index: int,
-                                          flags: int, position_low: int, position_high: int,
-                                          requested_size: int) -> None:
+    def _on_server_file_contents_request(
+        self,
+        cliprdr,
+        stream_id: int,
+        list_index: int,
+        flags: int,
+        position_low: int,
+        position_high: int,
+        requested_size: int,
+    ) -> None:
         """Le serveur demande le contenu d'un fichier que LE CLIENT a
         annoncé (push local -> serveur)."""
         self._cliprdr = cliprdr
@@ -899,8 +926,10 @@ class Clipboard:
 
         path = self._local_files[list_index]
         if path is None:
-            logger.debug("Clipboard: FileContentsRequest sur une entrée dossier (index {}), "
-                         "aucun contenu à transférer", list_index)
+            logger.debug(
+                "Clipboard: FileContentsRequest sur une entrée dossier (index {}), aucun contenu à transférer",
+                list_index,
+            )
             shim.asyncrdp_clipboard_send_file_contents_response(cliprdr, stream_id, ffi.NULL, 0)
             return
         try:
@@ -917,8 +946,9 @@ class Clipboard:
             shim.asyncrdp_clipboard_send_file_contents_response(cliprdr, stream_id, ffi.NULL, 0)
             return
 
-        logger.debug("Clipboard: envoi de {} octets pour le fichier local {!r} (stream={})",
-                     len(payload), path, stream_id)
+        logger.debug(
+            "Clipboard: envoi de {} octets pour le fichier local {!r} (stream={})", len(payload), path, stream_id
+        )
         buf = ffi.new("unsigned char[]", payload)
         shim.asyncrdp_clipboard_send_file_contents_response(cliprdr, stream_id, buf, len(payload))
 
@@ -1009,8 +1039,13 @@ class Clipboard:
             future = self._loop.create_future()
             self._pending_file_requests[stream_id] = future
             shim.asyncrdp_clipboard_request_file_contents(
-                self._cliprdr, stream_id, index, FILECONTENTS_RANGE,
-                offset & 0xFFFFFFFF, (offset >> 32) & 0xFFFFFFFF, size_to_request,
+                self._cliprdr,
+                stream_id,
+                index,
+                FILECONTENTS_RANGE,
+                offset & 0xFFFFFFFF,
+                (offset >> 32) & 0xFFFFFFFF,
+                size_to_request,
             )
             try:
                 chunk = await asyncio.wait_for(future, timeout=10.0)
@@ -1025,8 +1060,7 @@ class Clipboard:
             offset += len(chunk)
 
         result = b"".join(chunks)
-        logger.debug("Clipboard: {!r} téléchargé ({} octets sur {} attendus)",
-                     info.name, len(result), info.size)
+        logger.debug("Clipboard: {!r} téléchargé ({} octets sur {} attendus)", info.name, len(result), info.size)
         return result
 
     # ------------------------------------------------------------------
@@ -1103,8 +1137,8 @@ class Client:
 
         self._disp = None  # void* DispClientContext*, reçu quand le canal est prêt
 
-        self._gfx = None              # void* RdpgfxClientContext*, reçu quand le canal est prêt
-        self._gdi_ready = False       # True une fois gdi_init() fait côté connect()
+        self._gfx = None  # void* RdpgfxClientContext*, reçu quand le canal est prêt
+        self._gdi_ready = False  # True une fois gdi_init() fait côté connect()
         self._options_wants_gfx = False  # copie de options.enable_graphics_pipeline
 
     @traced
@@ -1211,9 +1245,7 @@ class Client:
     def _schedule_refresh(self) -> None:
         self._sync_fds()
         if not self._disconnect_event.is_set():
-            self._refresh_handle = self._loop.call_later(
-                self._REFRESH_INTERVAL, self._schedule_refresh
-            )
+            self._refresh_handle = self._loop.call_later(self._REFRESH_INTERVAL, self._schedule_refresh)
 
     @traced
     def _register_fds(self) -> None:
@@ -1246,11 +1278,14 @@ class Client:
 
 
 @asynccontextmanager
-async def connect(host: str, port: int = 3389,
-                   username: str | None = None,
-                   password: str | None = None,
-                   domain: str | None = None,
-                   options: RdpOptions | None = None):
+async def connect(
+    host: str,
+    port: int = 3389,
+    username: str | None = None,
+    password: str | None = None,
+    domain: str | None = None,
+    options: RdpOptions | None = None,
+):
     """
     Usage:
         opts = RdpOptions(redirect_drives=True, drives=[DriveMapping("home", "/home/mathilde")])
@@ -1263,8 +1298,8 @@ async def connect(host: str, port: int = 3389,
     du champ "Domaine" de mstsc) — sans lui, l'authentification échoue sur
     la plupart des serveurs joints à un domaine.
     """
+    logger.debug("connect() : {}{}@{}:{}", f"{domain}\\" if domain else "", username or "(anonyme)", host, port)
     options = options or RdpOptions()
-    logger.info("connect() : {}{}@{}:{}", f"{domain}\\" if domain else "", username or "(anonyme)", host, port)
     loop = asyncio.get_running_loop()
 
     context = shim.asyncrdp_context_new(ffi.NULL)
@@ -1285,14 +1320,14 @@ async def connect(host: str, port: int = 3389,
     if not ok:
         logger.error("Échec de configuration des rdpSettings")
         shim.asyncrdp_context_free(context)
+        logger.debug("rdpSettings non configurés : contexte libéré, échec signalé")
         raise FreeRDPError("échec de configuration des rdpSettings")
 
     # À appeler après TOUS les settings et avant connect() : charge les
     # plugins de canaux (rdpdr/urbdrc/rdpsnd/etc.) correspondant aux
     # redirections activées ci-dessus.
     if not shim.asyncrdp_load_addins(context):
-        logger.warning("Échec du chargement de certains addins de canaux "
-                        "(redirections partiellement indisponibles)")
+        logger.warning("Échec du chargement de certains addins de canaux (redirections partiellement indisponibles)")
 
     # BUG RÉEL trouvé en testant contre un vrai serveur (xrdp) : le canal
     # cliprdr se connecte PENDANT la négociation initiale (à l'intérieur
@@ -1335,6 +1370,7 @@ async def connect(host: str, port: int = 3389,
         logger.error("Échec d'initialisation du GDI logiciel")
         del _clients_by_context[_ctx_key(context)]
         shim.asyncrdp_context_free(context)
+        logger.debug("GDI non initialisé : contexte libéré, échec signalé")
         raise FreeRDPError("échec d'initialisation du GDI logiciel")
     logger.debug("GDI logiciel initialisé (BGRA32)")
     client._gdi_ready = True

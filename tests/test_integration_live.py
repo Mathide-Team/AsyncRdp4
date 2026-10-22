@@ -37,7 +37,8 @@ pytestmark = pytest.mark.integration
 async def connected_client(live_server_config):
     host, port, username, password = live_server_config
     options = asyncrdp.RdpOptions(
-        width=1280, height=800,
+        width=1280,
+        height=800,
         redirect_clipboard=True,
         ignore_certificate=True,
     )

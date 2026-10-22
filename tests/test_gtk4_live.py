@@ -87,6 +87,7 @@ lecteur externe réel, que ce n'est plus un xfail. Les deux tentatives
 PyGObject précédentes restent en xfail : elles documentent toujours
 fidèlement une impasse réelle, seulement contournée, pas corrigée.
 """
+
 import struct
 import subprocess
 import sys
@@ -103,9 +104,11 @@ _GTK4_DIR = str(Path(__file__).resolve().parent.parent / "integrations" / "gtk4"
 def _require_gtk4():
     sys.path.insert(0, _GTK4_DIR)
     import gi
+
     gi.require_version("Gtk", "4.0")
     gi.require_version("Gdk", "4.0")
     from gi.repository import Gdk, GLib, Gtk
+
     return Gtk, Gdk, GLib
 
 
@@ -254,8 +257,17 @@ def _make_indexed_bmp_dib(width=4, height=2):
     rows = bytes(row) * height
     header = struct.pack(
         "<IiiHHIIiiII",
-        40, width, height, 1, bit_count, 0,
-        len(rows), 0, 0, num_colors, 0,
+        40,
+        width,
+        height,
+        1,
+        bit_count,
+        0,
+        len(rows),
+        0,
+        0,
+        num_colors,
+        0,
     )
     return header + palette + rows
 
@@ -309,6 +321,7 @@ def test_display_bridge_renders_correct_colors_onscreen(gtk4_live_enabled, tmp_p
     assert "png_path" in outcome, "la capture d'écran n'a pas abouti (voir sortie GTK ci-dessus)"
 
     from PIL import Image
+
     img = Image.open(outcome["png_path"]).convert("RGB")
 
     def close(rgb, expected, tol=40):
@@ -362,10 +375,12 @@ def test_clipboard_bridge_text_roundtrip_via_external_client(gtk4_live_enabled):
                         app.quit()
                         return False
                     return True
+
                 GLib.timeout_add(100, poll_capture)
 
-            _run_async(GLib, ["xclip", "-selection", "clipboard"], after_write,
-                       input_bytes=external_text.encode("utf-8"))
+            _run_async(
+                GLib, ["xclip", "-selection", "clipboard"], after_write, input_bytes=external_text.encode("utf-8")
+            )
             results["_external_text_sent"] = external_text
 
     app = Gtk.Application(application_id="org.asyncrdp.test.clip.text")
@@ -450,10 +465,10 @@ def test_clipboard_bridge_files_roundtrip_via_external_client(gtk4_live_enabled,
                     app.quit()
                     return False
                 return True
+
             GLib.timeout_add(100, poll_capture)
 
-        _run_async(GLib, ["xclip", "-selection", "clipboard", "-t", "text/uri-list"], after_write,
-                   input_bytes=uri_list)
+        _run_async(GLib, ["xclip", "-selection", "clipboard", "-t", "text/uri-list"], after_write, input_bytes=uri_list)
 
     app = Gtk.Application(application_id="org.asyncrdp.test.clip.files")
     app.connect("activate", on_activate)
@@ -519,9 +534,11 @@ def test_clipboard_bridge_files_download_from_rdp_via_external_reader(gtk4_live_
     def on_activate(app):
         win = Gtk.ApplicationWindow(application=app)
         win.present()
-        rdp = types.SimpleNamespace(clipboard=types.SimpleNamespace(
-            request_remote_file_contents=fake_request_remote_file_contents,
-        ))
+        rdp = types.SimpleNamespace(
+            clipboard=types.SimpleNamespace(
+                request_remote_file_contents=fake_request_remote_file_contents,
+            )
+        )
         bridge = ClipboardBridge(rdp, Gdk.Display.get_default())
         results["download_dir"] = bridge._download_dir
 
@@ -534,9 +551,11 @@ def test_clipboard_bridge_files_download_from_rdp_via_external_reader(gtk4_live_
             poll_tick_count += 1
             formats = Gdk.Display.get_default().get_clipboard().get_formats()
             if formats.contain_gtype(Gdk.FileList):
+
                 def after_read(ret, out, err):
                     results["uri_list"] = out
                     app.quit()
+
                 _run_async(GLib, ["xclip", "-o", "-selection", "clipboard", "-t", "text/uri-list"], after_read)
                 return False
             if poll_tick_count > 100:  # ~5s à 50ms/tick
@@ -544,6 +563,7 @@ def test_clipboard_bridge_files_download_from_rdp_via_external_reader(gtk4_live_
                 app.quit()
                 return False
             return True
+
         GLib.timeout_add(50, poll_clipboard_ready)
 
     app = Gtk.Application(application_id="org.asyncrdp.test.clip.files.download")
@@ -563,11 +583,7 @@ def test_clipboard_bridge_files_download_from_rdp_via_external_reader(gtk4_live_
     assert (download_dir / "sous-dossier" / "notes.bin").read_bytes() == remote_contents[2]
 
     uri_list = results.get("uri_list", b"").decode("utf-8")
-    got_paths = {
-        line[len("file://"):]
-        for line in uri_list.replace("\r\n", "\n").split("\n")
-        if line
-    }
+    got_paths = {line[len("file://") :] for line in uri_list.replace("\r\n", "\n").split("\n") if line}
     # Les deux entrées de premier niveau seulement : le fichier isolé ET
     # le dossier lui-même (pas le fichier imbriqué, déjà représenté par
     # son dossier racine) — c'est précisément l'assertion qui échouait
@@ -623,9 +639,10 @@ def test_clipboard_image_available_to_external_reader(gtk4_live_enabled, native_
 
         GLib.timeout_add(
             300,
-            lambda: (_run_async(
-                GLib, ["xclip", "-o", "-selection", "clipboard", "-t", "image/png"], after_read
-            ), False)[1],
+            lambda: (
+                _run_async(GLib, ["xclip", "-o", "-selection", "clipboard", "-t", "image/png"], after_read),
+                False,
+            )[1],
         )
 
     app = Gtk.Application(application_id="org.asyncrdp.test.clip.image")
@@ -740,6 +757,7 @@ def test_clipboard_image_custom_content_provider_write_bug(gtk4_live_enabled):
     def on_activate(app):
         dib = _make_indexed_bmp_dib(width=4, height=2)
         from gcm_gtk4_clipboard_bridge import _dib_to_texture
+
         texture = _dib_to_texture(dib)
 
         win = Gtk.ApplicationWindow(application=app)
@@ -759,9 +777,10 @@ def test_clipboard_image_custom_content_provider_write_bug(gtk4_live_enabled):
 
         GLib.timeout_add(
             300,
-            lambda: (_run_async(
-                GLib, ["xclip", "-o", "-selection", "clipboard", "-t", "image/png"], after_read
-            ), False)[1],
+            lambda: (
+                _run_async(GLib, ["xclip", "-o", "-selection", "clipboard", "-t", "image/png"], after_read),
+                False,
+            )[1],
         )
 
     app = Gtk.Application(application_id="org.asyncrdp.test.clip.image.customprovider")
@@ -773,8 +792,7 @@ def test_clipboard_image_custom_content_provider_write_bug(gtk4_live_enabled):
         "aussi, la regression est plus large que documente"
     )
     assert results.get("bytes", b"")[:8] == b"\x89PNG\r\n\x1a\n", (
-        "l'image PNG devrait etre livree a un lecteur externe via le "
-        "ContentProvider custom"
+        "l'image PNG devrait etre livree a un lecteur externe via le ContentProvider custom"
     )
 
 
@@ -883,6 +901,7 @@ def test_clipboard_image_write_bug_survives_direct_callback_invocation(gtk4_live
     def on_activate(app):
         dib = _make_indexed_bmp_dib(width=4, height=2)
         from gcm_gtk4_clipboard_bridge import _dib_to_texture
+
         texture = _dib_to_texture(dib)
 
         win = Gtk.ApplicationWindow(application=app)
@@ -898,9 +917,10 @@ def test_clipboard_image_write_bug_survives_direct_callback_invocation(gtk4_live
 
         GLib.timeout_add(
             300,
-            lambda: (_run_async(
-                GLib, ["xclip", "-o", "-selection", "clipboard", "-t", "image/png"], after_read
-            ), False)[1],
+            lambda: (
+                _run_async(GLib, ["xclip", "-o", "-selection", "clipboard", "-t", "image/png"], after_read),
+                False,
+            )[1],
         )
 
     app = Gtk.Application(application_id="org.asyncrdp.test.clip.image.directcallback")
@@ -963,9 +983,10 @@ def test_clipboard_image_native_c_provider_delivers_real_png(gtk4_live_enabled, 
 
         GLib.timeout_add(
             300,
-            lambda: (_run_async(
-                GLib, ["xclip", "-o", "-selection", "clipboard", "-t", "image/png"], after_read
-            ), False)[1],
+            lambda: (
+                _run_async(GLib, ["xclip", "-o", "-selection", "clipboard", "-t", "image/png"], after_read),
+                False,
+            )[1],
         )
 
     app = Gtk.Application(application_id="org.asyncrdp.test.clip.image.nativeprovider")
@@ -1105,6 +1126,7 @@ def test_demo_session_assembles_real_window_display_and_clipboard_bridge(gtk4_li
                 results["timed_out"] = True
                 app.quit()
             return False
+
         GLib.timeout_add(10000, _timeout_guard)
 
     app = Gtk.Application(application_id="org.asyncrdp.test.demo.viewer.assembly")

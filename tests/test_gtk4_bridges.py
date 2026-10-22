@@ -63,16 +63,18 @@ def _import_bridges_with_stub():
     pas perturber les autres fichiers de tests (qui ont besoin du vrai
     `asyncrdp` compilé, cf. conftest.py)."""
     keys = (
-        "gi", "gi.repository", "asyncrdp", "asyncrdp.tracing",
-        "gcm_gtk4_display_bridge", "gcm_gtk4_clipboard_bridge",
+        "gi",
+        "gi.repository",
+        "asyncrdp",
+        "asyncrdp.tracing",
+        "gcm_gtk4_display_bridge",
+        "gcm_gtk4_clipboard_bridge",
     )
     saved = {key: sys.modules.get(key) for key in keys}
     try:
         fake_gi = ModuleType("gi")
         sys.modules["gi"] = fake_gi
-        stub_repository = _load_module_from_path(
-            "gi.repository", _STUB_DIR / "gi" / "repository.py"
-        )
+        stub_repository = _load_module_from_path("gi.repository", _STUB_DIR / "gi" / "repository.py")
         fake_gi.repository = stub_repository
         _load_module_from_path("asyncrdp", _STUB_DIR / "asyncrdp.py")
         # asyncrdp.tracing (décorateur `traced`, ajouté le 2026-09-06) n'a
@@ -85,13 +87,9 @@ def _import_bridges_with_stub():
         # vrai fichier source plutôt que d'en réécrire une doublure, pour
         # ne pas faire diverger le comportement testé de `test_tracing.py`
         # de celui réellement appliqué aux ponts.
-        _load_module_from_path(
-            "asyncrdp.tracing", _REPO_ROOT / "src" / "asyncrdp" / "tracing.py"
-        )
+        _load_module_from_path("asyncrdp.tracing", _REPO_ROOT / "src" / "asyncrdp" / "tracing.py")
 
-        display_bridge = _load_module_from_path(
-            "gcm_gtk4_display_bridge", _GTK4_DIR / "gcm_gtk4_display_bridge.py"
-        )
+        display_bridge = _load_module_from_path("gcm_gtk4_display_bridge", _GTK4_DIR / "gcm_gtk4_display_bridge.py")
         clipboard_bridge = _load_module_from_path(
             "gcm_gtk4_clipboard_bridge", _GTK4_DIR / "gcm_gtk4_clipboard_bridge.py"
         )
@@ -166,6 +164,7 @@ def _make_view(width: int, height: int, remote_size: tuple[int, int] = (1920, 10
 # Souris : mise à l'échelle des coordonnées (_to_remote_coords)
 # ---------------------------------------------------------------------
 
+
 def test_to_remote_coords_scales_proportionally():
     view = _make_view(width=800, height=600, remote_size=(1920, 1080))
     assert view._to_remote_coords(400, 300) == (960, 540)
@@ -194,6 +193,7 @@ def test_on_motion_moves_mouse_in_remote_coords():
 # Souris : boutons
 # ---------------------------------------------------------------------
 
+
 def test_button_names_mapping():
     assert display_bridge.RdpView._BUTTON_NAMES == {1: "left", 2: "middle", 3: "right"}
 
@@ -220,6 +220,7 @@ def test_on_button_pressed_unknown_button_defaults_to_left():
 # Souris : molette (inversion de signe, cf. commentaire de _on_scroll)
 # ---------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "dy,expected_delta",
     [(1.0, -120), (-1.0, 120), (2.0, -240), (0.0, 0)],
@@ -234,6 +235,7 @@ def test_on_scroll_inverts_sign(dy, expected_delta):
 # ---------------------------------------------------------------------
 # Clavier : touches de contrôle et caractères imprimables
 # ---------------------------------------------------------------------
+
 
 def test_control_keys_mapping_spot_check():
     keys = display_bridge.RdpView._CONTROL_KEYS
@@ -295,11 +297,22 @@ def test_on_key_released_is_a_noop():
 # BMP reconstruit a un offset de pixels faux.
 # ---------------------------------------------------------------------
 
+
 def _make_dib(bit_count: int, colors_used: int, pixel_bytes: bytes) -> bytes:
     palette = b"\x00" * (4 * (colors_used or (1 << bit_count if bit_count <= 8 else 0)))
     header = struct.pack(
         "<IiiHHIIiiII",
-        40, 1, 1, 1, bit_count, 0, len(pixel_bytes), 0, 0, colors_used, 0,
+        40,
+        1,
+        1,
+        1,
+        bit_count,
+        0,
+        len(pixel_bytes),
+        0,
+        0,
+        colors_used,
+        0,
     )
     return header + palette + pixel_bytes
 
@@ -351,6 +364,7 @@ def test_dib_to_texture_too_short_returns_none():
 # padding de fin de ligne sur 4 octets)
 # ---------------------------------------------------------------------
 
+
 class _FakePixbuf:
     """Doublure minimale d'un GdkPixbuf.Pixbuf : image RGB sans canal
     alpha (n_channels=3), rowstride == width*n_channels (pas de padding
@@ -387,8 +401,9 @@ def test_pixbuf_to_dib_header_fields():
 
     dib = clipboard_bridge._pixbuf_to_dib(pixbuf)
 
-    (size, width, height, planes, bit_count, compression, size_image,
-     _xppm, _yppm, _clr_used, _clr_important) = struct.unpack_from("<IiiHHIIiiII", dib, 0)
+    (size, width, height, planes, bit_count, compression, size_image, _xppm, _yppm, _clr_used, _clr_important) = (
+        struct.unpack_from("<IiiHHIIiiII", dib, 0)
+    )
     assert (size, width, height, planes, bit_count, compression) == (40, 3, 2, 1, 24, 0)
     row_size = ((3 * 3 + 3) // 4) * 4  # 12 : padding de 3 octets par ligne
     assert size_image == row_size * 2
@@ -402,8 +417,8 @@ def test_pixbuf_to_dib_is_bottom_up_and_bgr_ordered():
 
     dib = clipboard_bridge._pixbuf_to_dib(pixbuf)
     row_size = 12
-    first_body_row = dib[40: 40 + row_size]
-    second_body_row = dib[40 + row_size: 40 + 2 * row_size]
+    first_body_row = dib[40 : 40 + row_size]
+    second_body_row = dib[40 + row_size : 40 + 2 * row_size]
 
     # DIB bottom-up : la première ligne stockée est la ligne DU BAS de
     # l'image (bottom_row), et RGB -> BGR.
@@ -418,8 +433,8 @@ def test_pixbuf_to_dib_row_padding_is_zero_filled():
 
     dib = clipboard_bridge._pixbuf_to_dib(pixbuf)
     row_size = 12
-    first_body_row = dib[40: 40 + row_size]
-    second_body_row = dib[40 + row_size: 40 + 2 * row_size]
+    first_body_row = dib[40 : 40 + row_size]
+    second_body_row = dib[40 + row_size : 40 + 2 * row_size]
 
     assert first_body_row[9:12] == b"\x00\x00\x00"
     assert second_body_row[9:12] == b"\x00\x00\x00"

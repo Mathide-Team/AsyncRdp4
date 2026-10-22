@@ -6,10 +6,12 @@ Binding asyncio sur libfreerdp3, pensé comme l'équivalent RDP d'[asyncvnc2](ht
 import asyncio
 import asyncrdp
 
+
 async def main():
     async with asyncrdp.connect("192.168.1.10", username="alice", password="secret") as client:
         frame = await client.get_frame()
         print(client.frame_size)
+
 
 asyncio.run(main())
 ```
@@ -147,7 +149,9 @@ async with asyncrdp.connect(host, port=3389, username="u", password="p") as clie
 
 ```python
 options = asyncrdp.RdpOptions(
-    width=1920, height=1080, color_depth=32,
+    width=1920,
+    height=1080,
+    color_depth=32,
     redirect_clipboard=True,
     redirect_drives=True,
     drives=[asyncrdp.DriveMapping("home", "/home/alice")],
@@ -169,7 +173,7 @@ Tous les champs ont un défaut raisonnable — ne préciser que ce qui doit chan
 ### Affichage
 
 ```python
-raw = await client.get_frame()      # BGRA32 brut
+raw = await client.get_frame()  # BGRA32 brut
 width, height = client.frame_size
 ```
 
@@ -177,24 +181,24 @@ width, height = client.frame_size
 
 ```python
 client.keyboard.write("bonjour")
-client.keyboard.key_press("return")     # touches nommées : return, tab, escape, f1-f12, flèches...
+client.keyboard.key_press("return")  # touches nommées : return, tab, escape, f1-f12, flèches...
 client.mouse.move(100, 200)
-client.mouse.click("left")              # ou button_press()/button_release() séparés pour un drag
-client.mouse.scroll(120)                # positif = molette vers le haut
+client.mouse.click("left")  # ou button_press()/button_release() séparés pour un drag
+client.mouse.scroll(120)  # positif = molette vers le haut
 ```
 
 ### Resize dynamique
 
 ```python
-client.request_resize(1024, 768)   # le serveur peut clamp/ignorer ; confirmation via les frames suivantes
+client.request_resize(1024, 768)  # le serveur peut clamp/ignorer ; confirmation via les frames suivantes
 ```
 
 ### Clipboard riche (texte / image / fichiers)
 
 ```python
 client.clipboard.on_remote_text_changed = lambda text: print("reçu:", text)
-client.clipboard.on_remote_image_changed = lambda dib: ...   # DIB brut (BITMAPINFOHEADER/V5 + pixels)
-client.clipboard.on_remote_files_changed = lambda files: ... # list[RemoteFileInfo]
+client.clipboard.on_remote_image_changed = lambda dib: ...  # DIB brut (BITMAPINFOHEADER/V5 + pixels)
+client.clipboard.on_remote_files_changed = lambda files: ...  # list[RemoteFileInfo]
 
 client.clipboard.get_local_text = lambda: "mon texte"
 client.clipboard.announce_local_text("mon texte")

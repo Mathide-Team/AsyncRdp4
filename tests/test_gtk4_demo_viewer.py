@@ -50,17 +50,20 @@ def _import_demo_modules_with_stub():
     test_gtk4_bridges.py::_import_bridges_with_stub(), étendue aux deux
     nouveaux modules (dans leur ordre de dépendance)."""
     keys = (
-        "gi", "gi.repository", "asyncrdp", "asyncrdp.tracing",
-        "gcm_gtk4_display_bridge", "gcm_gtk4_clipboard_bridge",
-        "gcm_gtk4_rdp_session", "gcm_gtk4_demo_viewer",
+        "gi",
+        "gi.repository",
+        "asyncrdp",
+        "asyncrdp.tracing",
+        "gcm_gtk4_display_bridge",
+        "gcm_gtk4_clipboard_bridge",
+        "gcm_gtk4_rdp_session",
+        "gcm_gtk4_demo_viewer",
     )
     saved = {key: sys.modules.get(key) for key in keys}
     try:
         fake_gi = ModuleType("gi")
         sys.modules["gi"] = fake_gi
-        stub_repository = _load_module_from_path(
-            "gi.repository", _STUB_DIR / "gi" / "repository.py"
-        )
+        stub_repository = _load_module_from_path("gi.repository", _STUB_DIR / "gi" / "repository.py")
         fake_gi.repository = stub_repository
         stub_asyncrdp = _load_module_from_path("asyncrdp", _STUB_DIR / "asyncrdp.py")
         # asyncrdp.tracing : voir le commentaire équivalent dans
@@ -69,18 +72,10 @@ def _import_demo_modules_with_stub():
         # comportement testé de celui réellement appliqué.
         _load_module_from_path("asyncrdp.tracing", _REPO_ROOT / "src" / "asyncrdp" / "tracing.py")
 
-        _load_module_from_path(
-            "gcm_gtk4_display_bridge", _GTK4_DIR / "gcm_gtk4_display_bridge.py"
-        )
-        _load_module_from_path(
-            "gcm_gtk4_clipboard_bridge", _GTK4_DIR / "gcm_gtk4_clipboard_bridge.py"
-        )
-        rdp_session = _load_module_from_path(
-            "gcm_gtk4_rdp_session", _GTK4_DIR / "gcm_gtk4_rdp_session.py"
-        )
-        demo_viewer = _load_module_from_path(
-            "gcm_gtk4_demo_viewer", _GTK4_DIR / "gcm_gtk4_demo_viewer.py"
-        )
+        _load_module_from_path("gcm_gtk4_display_bridge", _GTK4_DIR / "gcm_gtk4_display_bridge.py")
+        _load_module_from_path("gcm_gtk4_clipboard_bridge", _GTK4_DIR / "gcm_gtk4_clipboard_bridge.py")
+        rdp_session = _load_module_from_path("gcm_gtk4_rdp_session", _GTK4_DIR / "gcm_gtk4_rdp_session.py")
+        demo_viewer = _load_module_from_path("gcm_gtk4_demo_viewer", _GTK4_DIR / "gcm_gtk4_demo_viewer.py")
     finally:
         for key, mod in saved.items():
             if mod is None:
@@ -100,6 +95,7 @@ Gdk = stub_gi.Gdk
 # -------------------------------------------------------------------------
 # Doublures
 # -------------------------------------------------------------------------
+
 
 def _make_fake_rdp_client():
     """Juste assez pour ClipboardBridge.__init__ (qui assigne des
@@ -184,6 +180,7 @@ def _make_session(view=None, ctx=None, gdk_display=None):
 # RdpSession — connect()
 # -------------------------------------------------------------------------
 
+
 async def test_connect_attaches_view_and_wires_clipboard_bridge():
     session, view, ctx, _ = _make_session()
 
@@ -249,6 +246,7 @@ async def test_assembly_failure_after_connect_closes_the_connection():
 # RdpSession — disconnect()
 # -------------------------------------------------------------------------
 
+
 async def test_disconnect_detaches_view_closes_clipboard_bridge_and_exits_context():
     session, view, ctx, _ = _make_session()
     client = await session.connect("host", 3389, "u", "p")
@@ -269,7 +267,7 @@ async def test_disconnect_without_prior_connect_is_a_safe_no_op():
     await session.disconnect()
 
     assert view.detach_calls == 1  # RdpView.detach() est sûre même sans attach() préalable
-    assert ctx.exit_calls == 0     # rien à refermer : connect() n'a jamais été appelée
+    assert ctx.exit_calls == 0  # rien à refermer : connect() n'a jamais été appelée
 
 
 async def test_disconnect_is_idempotent():
@@ -279,13 +277,14 @@ async def test_disconnect_is_idempotent():
     await session.disconnect()
     await session.disconnect()
 
-    assert view.detach_calls == 2   # detach() est appelée à chaque disconnect(), sans effet de bord
-    assert ctx.exit_calls == 1      # __aexit__, lui, ne doit être appelé qu'une seule fois
+    assert view.detach_calls == 2  # detach() est appelée à chaque disconnect(), sans effet de bord
+    assert ctx.exit_calls == 1  # __aexit__, lui, ne doit être appelé qu'une seule fois
 
 
 # -------------------------------------------------------------------------
 # parse_args()
 # -------------------------------------------------------------------------
+
 
 def test_parse_args_defaults():
     args = parse_args(["10.0.0.5", "alice", "secret"])
@@ -301,11 +300,17 @@ def test_parse_args_defaults():
 
 
 def test_parse_args_drive_is_repeatable():
-    args = parse_args([
-        "host", "u", "p",
-        "--drive", "home:/home/mathilde",
-        "--drive", "data:/srv/data",
-    ])
+    args = parse_args(
+        [
+            "host",
+            "u",
+            "p",
+            "--drive",
+            "home:/home/mathilde",
+            "--drive",
+            "data:/srv/data",
+        ]
+    )
 
     assert args.drive == ["home:/home/mathilde", "data:/srv/data"]
 
@@ -313,6 +318,7 @@ def test_parse_args_drive_is_repeatable():
 # -------------------------------------------------------------------------
 # build_rdp_options()
 # -------------------------------------------------------------------------
+
 
 def test_build_rdp_options_maps_basic_fields():
     args = parse_args(["host", "u", "p", "--width", "1024", "--height", "768", "--ignore-certificate"])

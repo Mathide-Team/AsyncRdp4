@@ -55,6 +55,7 @@ in C) does not work in PyGObject.
 
 ```python
 import gi
+
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gtk, Gdk, Gio, GLib, GdkPixbuf
 
@@ -71,8 +72,7 @@ class MinimalImageProvider(Gdk.ContentProvider):
         gvalue.set_object(self)
         return True
 
-    def do_write_mime_type_async(self, mime_type, stream, io_priority,
-                                  cancellable, callback, user_data):
+    def do_write_mime_type_async(self, mime_type, stream, io_priority, cancellable, callback, user_data):
         print("user_data received from GDK:", repr(user_data))  # -> None
         task = Gio.Task.new(self, cancellable, callback, user_data)
         try:

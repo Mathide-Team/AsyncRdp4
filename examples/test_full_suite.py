@@ -40,45 +40,60 @@ from pathlib import Path
 from loguru import logger
 
 import asyncrdp
+from asyncrdp.tracing import traced
 
 
+@traced
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("host")
     p.add_argument("port", nargs="?", type=int, default=3389)
     p.add_argument("username")
     p.add_argument("password")
-    p.add_argument("--session-display", default=None,
-                    help="DISPLAY X11 de la session distante (ex: :11), pour les tests clipboard "
-                         "'pull' via xclip. Nécessite un accès shell à la machine hébergeant la "
-                         "session (typique en dev/sandbox, pas en usage normal).")
-    p.add_argument("--session-user", default=None,
-                    help="Utilisateur système propriétaire de la session (pour lancer xclip en son nom).")
-    p.add_argument("--drive-mount-parent", default=None,
-                    help="Dossier PARENT (pas le point de montage lui-même) où xrdp-chansrv "
-                         "fait apparaître les disques redirigés (ex: /home/rdptest/thinclient_drives). "
-                         "Le nom exact du sous-dossier monté n'est pas prévisible à l'avance : "
-                         "xrdp/FreeRDP peut tronquer le libellé du disque (constaté à 8 caractères, "
-                         "voir CLAUDE.md) — ce script le découvre dynamiquement en comparant le "
-                         "contenu de ce dossier avant/après connexion, plutôt que de le supposer. "
-                         "Nécessite --session-user : ce dossier est peuplé par xrdp-chansrv en tant "
-                         "que cet utilisateur (FUSE sans allow_other), un accès direct depuis un "
-                         "autre utilisateur (root compris) échoue avec Permission denied.")
+    p.add_argument(
+        "--session-display",
+        default=None,
+        help="DISPLAY X11 de la session distante (ex: :11), pour les tests clipboard "
+        "'pull' via xclip. Nécessite un accès shell à la machine hébergeant la "
+        "session (typique en dev/sandbox, pas en usage normal).",
+    )
+    p.add_argument(
+        "--session-user",
+        default=None,
+        help="Utilisateur système propriétaire de la session (pour lancer xclip en son nom).",
+    )
+    p.add_argument(
+        "--drive-mount-parent",
+        default=None,
+        help="Dossier PARENT (pas le point de montage lui-même) où xrdp-chansrv "
+        "fait apparaître les disques redirigés (ex: /home/rdptest/thinclient_drives). "
+        "Le nom exact du sous-dossier monté n'est pas prévisible à l'avance : "
+        "xrdp/FreeRDP peut tronquer le libellé du disque (constaté à 8 caractères, "
+        "voir CLAUDE.md) — ce script le découvre dynamiquement en comparant le "
+        "contenu de ce dossier avant/après connexion, plutôt que de le supposer. "
+        "Nécessite --session-user : ce dossier est peuplé par xrdp-chansrv en tant "
+        "que cet utilisateur (FUSE sans allow_other), un accès direct depuis un "
+        "autre utilisateur (root compris) échoue avec Permission denied.",
+    )
     return p.parse_args()
 
 
 class Results:
+    @traced
     def __init__(self):
         self.results: dict[str, bool | None] = {}  # None = ignoré (prérequis absents)
 
+    @traced
     def record(self, name: str, ok: bool) -> None:
         self.results[name] = ok
         logger.info("[{}] {}", "OK  " if ok else "ÉCHEC", name)
 
+    @traced
     def skip(self, name: str, reason: str) -> None:
         self.results[name] = None
         logger.info("[SKIP] {} ({})", name, reason)
 
+    @traced
     def summary(self) -> int:
         logger.info("=" * 60)
         logger.info("RÉSUMÉ")
@@ -93,14 +108,18 @@ class Results:
 # Tests autonomes
 # ---------------------------------------------------------------------------
 
+
+@traced
 async def test_frames(client: asyncrdp.Client, results: Results) -> None:
     try:
         await asyncio.wait_for(client.get_frame(), timeout=10.0)
         results.record("frames", True)
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as exc:
+        logger.debug("délai dépassé sur les frames : {}", exc)
         results.record("frames", False)
 
 
+@traced
 async def test_input(client: asyncrdp.Client, results: Results) -> None:
     try:
         client.mouse.move(100, 100)
@@ -113,6 +132,7 @@ async def test_input(client: asyncrdp.Client, results: Results) -> None:
         results.record("clavier/souris", False)
 
 
+@traced
 async def test_resize(client: asyncrdp.Client, results: Results) -> None:
     try:
         ok = client.request_resize(1024, 640)
@@ -120,7 +140,8 @@ async def test_resize(client: asyncrdp.Client, results: Results) -> None:
         try:
             await asyncio.wait_for(client.get_frame(), timeout=5.0)
             got_frame = True
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as exc:
+            logger.debug("délai dépassé sur le resize dynamique : {}", exc)
             got_frame = False
         results.record("resize dynamique", ok and got_frame)
     except Exception as exc:
@@ -128,6 +149,7 @@ async def test_resize(client: asyncrdp.Client, results: Results) -> None:
         results.record("resize dynamique", False)
 
 
+@traced
 async def test_clipboard_announce(client: asyncrdp.Client, results: Results) -> None:
     try:
         client.clipboard.get_local_text = lambda: "asyncrdp test clipboard"
@@ -139,6 +161,7 @@ async def test_clipboard_announce(client: asyncrdp.Client, results: Results) -> 
         results.record("clipboard announce (client -> serveur)", False)
 
 
+@traced
 async def test_clipboard_request(client: asyncrdp.Client, results: Results) -> None:
     try:
         text = await asyncio.wait_for(client.clipboard.request_remote_text(), timeout=5.0)
@@ -149,6 +172,7 @@ async def test_clipboard_request(client: asyncrdp.Client, results: Results) -> N
         results.record("clipboard request (protocole)", False)
 
 
+@traced
 async def test_multimonitor(host, port, username, password, results: Results) -> None:
     """Connexion séparée : la résolution multi-écran se règle à la
     connexion, pas modifiable en cours de session comme un simple resize."""
@@ -163,7 +187,7 @@ async def test_multimonitor(host, port, username, password, results: Results) ->
         async with asyncrdp.connect(host, port, username, password, options=options) as client:
             raw = await asyncio.wait_for(client.get_frame(), timeout=10.0)
             w, h = client.frame_size
-            expected = (w == 2304 and h == 800 and len(raw) == w * h * 4)
+            expected = w == 2304 and h == 800 and len(raw) == w * h * 4
             results.record(f"multi-écran (frame {w}x{h}, {len(raw)} octets)", expected)
     except Exception as exc:
         logger.error("Multi-écran : {}", exc)
@@ -174,6 +198,8 @@ async def test_multimonitor(host, port, username, password, results: Results) ->
 # Tests dépendants de l'environnement (session shell accessible)
 # ---------------------------------------------------------------------------
 
+
+@traced
 async def test_clipboard_pull_text(client: asyncrdp.Client, results: Results, args) -> None:
     if not args.session_display or not args.session_user:
         results.skip("clipboard pull texte (serveur -> client)", "--session-display/--session-user non fournis")
@@ -182,6 +208,7 @@ async def test_clipboard_pull_text(client: asyncrdp.Client, results: Results, ar
     received = asyncio.Event()
     received_text = None
 
+    @traced
     def on_text(text):
         nonlocal received_text
         received_text = text
@@ -193,20 +220,28 @@ async def test_clipboard_pull_text(client: asyncrdp.Client, results: Results, ar
     tmp_file.write_text(expected)
 
     subprocess.Popen(
-        ["su", args.session_user, "-c",
-         f"DISPLAY={args.session_display} setsid xclip -selection clipboard -i {tmp_file}"],
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        [
+            "su",
+            args.session_user,
+            "-c",
+            f"DISPLAY={args.session_display} setsid xclip -selection clipboard -i {tmp_file}",
+        ],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
     try:
         await asyncio.wait_for(received.wait(), timeout=10.0)
         results.record("clipboard pull texte (serveur -> client)", received_text == expected)
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as exc:
+        logger.debug("délai dépassé sur le pull texte du presse-papiers : {}", exc)
         results.record("clipboard pull texte (serveur -> client)", False)
     finally:
         client.clipboard.on_remote_text_changed = None
 
 
+@traced
 async def test_clipboard_pull_files(client: asyncrdp.Client, results: Results, args) -> None:
     if not args.session_display or not args.session_user:
         results.skip("clipboard pull fichiers (serveur -> client)", "--session-display/--session-user non fournis")
@@ -215,6 +250,7 @@ async def test_clipboard_pull_files(client: asyncrdp.Client, results: Results, a
     received = asyncio.Event()
     received_files = None
 
+    @traced
     def on_files(files):
         nonlocal received_files
         received_files = files
@@ -228,9 +264,15 @@ async def test_clipboard_pull_files(client: asyncrdp.Client, results: Results, a
     uri_list.write_text(f"file://{test_file}\n")
 
     subprocess.Popen(
-        ["su", args.session_user, "-c",
-         f"DISPLAY={args.session_display} setsid xclip -selection clipboard -t text/uri-list -i {uri_list}"],
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        [
+            "su",
+            args.session_user,
+            "-c",
+            f"DISPLAY={args.session_display} setsid xclip -selection clipboard -t text/uri-list -i {uri_list}",
+        ],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
     try:
@@ -240,12 +282,14 @@ async def test_clipboard_pull_files(client: asyncrdp.Client, results: Results, a
             return
         data = await client.clipboard.request_remote_file_contents(0)
         results.record("clipboard pull fichiers (serveur -> client)", data == expected_content)
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as exc:
+        logger.debug("délai dépassé sur le pull fichiers du presse-papiers : {}", exc)
         results.record("clipboard pull fichiers (serveur -> client)", False)
     finally:
         client.clipboard.on_remote_files_changed = None
 
 
+@traced
 async def _remote_run(args, shell_cmd: str, timeout: float = 5.0) -> subprocess.CompletedProcess | None:
     """Exécute une commande shell en tant que l'utilisateur propriétaire de
     la session distante (args.session_user), plutôt qu'en root (ou tout
@@ -275,6 +319,7 @@ async def _remote_run(args, shell_cmd: str, timeout: float = 5.0) -> subprocess.
     reste en place par sécurité, mais ne devrait plus jamais se déclencher
     une fois la vraie cause corrigée."""
 
+    @traced
     def _blocking() -> subprocess.CompletedProcess | None:
         try:
             return subprocess.run(
@@ -283,7 +328,8 @@ async def _remote_run(args, shell_cmd: str, timeout: float = 5.0) -> subprocess.
                 stdin=subprocess.DEVNULL,
                 timeout=timeout,
             )
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as exc:
+            logger.debug("délai dépassé sur la sortie du sous-processus : {}", exc)
             return None
 
     result = await asyncio.to_thread(_blocking)
@@ -292,6 +338,7 @@ async def _remote_run(args, shell_cmd: str, timeout: float = 5.0) -> subprocess.
     return result
 
 
+@traced
 async def _remote_listdir(args, path: Path) -> set[str] | None:
     result = await _remote_run(args, f"ls -1a {shlex.quote(str(path))}")
     if result is None or result.returncode != 0:
@@ -299,11 +346,13 @@ async def _remote_listdir(args, path: Path) -> set[str] | None:
     return {name for name in result.stdout.decode("utf-8", errors="replace").splitlines() if name not in (".", "..")}
 
 
+@traced
 async def _remote_exists(args, path: Path) -> bool:
     result = await _remote_run(args, f"test -e {shlex.quote(str(path))}")
     return result is not None and result.returncode == 0
 
 
+@traced
 async def _remote_read_text(args, path: Path) -> str | None:
     result = await _remote_run(args, f"cat {shlex.quote(str(path))}")
     if result is None or result.returncode != 0:
@@ -311,6 +360,7 @@ async def _remote_read_text(args, path: Path) -> str | None:
     return result.stdout.decode("utf-8", errors="replace")
 
 
+@traced
 async def _remote_write_text(args, path: Path, content: str) -> bool:
     def _blocking() -> subprocess.CompletedProcess:
         return subprocess.run(
@@ -328,6 +378,7 @@ async def _remote_write_text(args, path: Path, content: str) -> bool:
     return result.returncode == 0
 
 
+@traced
 async def test_drive_redirection(host, port, username, password, results: Results, args) -> None:
     """
     NOTE DE FIABILITÉ (mise à jour 2026-09-03) : deux causes réelles et
@@ -403,8 +454,9 @@ async def test_drive_redirection(host, port, username, password, results: Result
 
             if mount is None:
                 logger.warning(
-                    "disque redirigé : point de montage introuvable sous {} après 20s "
-                    "(entrées vues : {})", mount_parent, after if after is not None else "?",
+                    "disque redirigé : point de montage introuvable sous {} après 20s (entrées vues : {})",
+                    mount_parent,
+                    after if after is not None else "?",
                 )
                 results.record("disque redirigé : lecture client -> serveur", False)
                 results.record("disque redirigé : écriture serveur -> client", False)
@@ -436,6 +488,7 @@ async def test_drive_redirection(host, port, username, password, results: Result
         results.record("disque redirigé", False)
 
 
+@traced
 async def main() -> int:
     args = parse_args()
     logger.remove()
