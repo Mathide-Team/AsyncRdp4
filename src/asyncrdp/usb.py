@@ -85,6 +85,7 @@ class UsbDeviceInfo:
     product: str | None = None
     serial_number: str | None = None
 
+    @traced
     def __str__(self) -> str:  # pragma: no cover — confort d'affichage
         label = self.product or self.manufacturer or "périphérique USB"
         return f"{label} ({self.vendor_id:04x}:{self.product_id:04x})"
@@ -109,6 +110,7 @@ def list_usb_devices() -> list[UsbDeviceInfo]:
         import usb.core
         import usb.util
     except ImportError as exc:
+        logger.error("pyusb absent, énumération USB indisponible : {}", exc)
         raise RuntimeError(
             "L'énumération USB nécessite pyusb : pip install asyncrdp[usb] (ou 'pip install pyusb' directement)."
         ) from exc

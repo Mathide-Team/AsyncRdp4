@@ -22,6 +22,7 @@ from asyncrdp.tracing import _format_call, _safe_repr, traced
 # par défaut du projet (ajoute puis retire un sink dédié).
 # ---------------------------------------------------------------------
 
+
 class _TraceCapture:
     def __init__(self):
         self.messages: list[str] = []
@@ -40,6 +41,7 @@ class _TraceCapture:
 # voir docstring du module tracing.py — vérifié séparément en conditions
 # réelles contre un vrai module cffi compilé, voir CLAUDE.md).
 # ---------------------------------------------------------------------
+
 
 def test_traced_preserves_name_and_docstring_of_a_sync_function():
     def original(x: int) -> int:
@@ -64,6 +66,7 @@ def test_traced_preserves_name_of_an_async_function():
 # Comportement fonctionnel : la valeur de retour et les exceptions
 # traversent le décorateur sans changement.
 # ---------------------------------------------------------------------
+
 
 def test_traced_sync_function_returns_the_real_value():
     @traced
@@ -105,6 +108,7 @@ def test_traced_async_function_reraises_the_original_exception():
 # Paresse : sans sink TRACE actif (état par défaut du projet), le coût
 # de mise en forme des arguments/résultat n'est PAS payé.
 # ---------------------------------------------------------------------
+
 
 def test_traced_does_not_format_arguments_when_no_trace_sink_is_active():
     calls = {"repr": 0}
@@ -151,6 +155,7 @@ def test_traced_does_format_arguments_once_a_trace_sink_is_active():
 # Contenu du message : nom qualifié, entrée puis sortie, durée.
 # ---------------------------------------------------------------------
 
+
 def test_traced_logs_entry_then_exit_with_qualified_name():
     @traced
     def greet(name: str) -> str:
@@ -187,12 +192,11 @@ def test_traced_logs_exception_marker_on_failure():
 # manipulent de vrais mots de passe.
 # ---------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("param_name", ["password", "PASSWORD", "passwd", "pwd", "secret", "token", "auth_token"])
 def test_traced_redacts_sensitive_parameter_names(param_name: str):
     ns: dict = {}
-    exec(
-        f"def f(username, {param_name}):\n    return 'ok'\n", ns
-    )
+    exec(f"def f(username, {param_name}):\n    return 'ok'\n", ns)
     func = traced(ns["f"])
 
     with _TraceCapture() as capture:
@@ -220,6 +224,7 @@ def test_traced_redaction_also_applies_to_keyword_call():
 # bytes/bytearray : jamais affichés en clair — seulement leur longueur.
 # ---------------------------------------------------------------------
 
+
 def test_safe_repr_never_dumps_raw_bytes():
     payload = b"\x00\x01BGRA-frame-payload" * 1000
     rendered = _safe_repr(payload)
@@ -245,6 +250,7 @@ def test_traced_never_dumps_raw_bytes_in_entry_or_exit():
 # Troncature des repr trop longs.
 # ---------------------------------------------------------------------
 
+
 def test_safe_repr_truncates_long_values():
     long_text = "x" * 500
     rendered = _safe_repr(long_text)
@@ -257,6 +263,7 @@ def test_safe_repr_truncates_long_values():
 # complet de l'instance (peut être volumineux/contenir des données
 # internes non destinées au log).
 # ---------------------------------------------------------------------
+
 
 def test_traced_method_shows_class_name_not_full_instance_repr():
     class Client:
@@ -278,6 +285,7 @@ def test_traced_method_shows_class_name_not_full_instance_repr():
 # Repli quand la signature n'est pas introspectable (cas réel : les
 # méthodes de types builtins C n'ont souvent pas de signature).
 # ---------------------------------------------------------------------
+
 
 def test_format_call_falls_back_when_signature_is_not_introspectable():
     # dict.update est un cas réel confirmé sans signature introspectable

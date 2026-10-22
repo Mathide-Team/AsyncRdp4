@@ -17,9 +17,14 @@ from __future__ import annotations
 import asyncio
 import warnings
 
+from loguru import logger
+
 
 def run_application(app, argv: list[str] | None = None) -> int:
     """Lance *app* (Gtk.Application) avec asyncio branché sur GLib ; renvoie le code de sortie."""
+    # Pas de @traced ici : gcm_gtk4_asyncio ne doit importer aucun module
+    # asyncrdp (graphe d'imports vérifié par tests/test_no_circular_imports.py).
+    logger.debug("run_application() appelée | argv={}", argv)
     argv = [] if argv is None else argv
     with warnings.catch_warnings():
         # asyncio.*_event_loop_policy : dépréciés en 3.14, retirés en 3.16 ;
@@ -28,18 +33,23 @@ def run_application(app, argv: list[str] | None = None) -> int:
         previous = asyncio.get_event_loop_policy()
         try:
             from gi.events import GLibEventLoopPolicy
-        except ImportError:
+        except ImportError as exc:
+            logger.debug("gbulb absent, politique GLib non chargée : {}", exc)
             GLibEventLoopPolicy = None
         try:
             if GLibEventLoopPolicy is not None:
                 asyncio.set_event_loop_policy(GLibEventLoopPolicy())
-                return int(app.run(argv) or 0)
+                code = int(app.run(argv) or 0)
+                logger.debug("run_application() retourne | {} (politique GLib)", code)
+                return code
             import gbulb
 
             asyncio.set_event_loop_policy(gbulb.GLibEventLoopPolicy())
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_forever(application=app, argv=argv)
+            logger.debug("run_application() retourne | 0 (gbulb)")
             return 0
         finally:
             asyncio.set_event_loop_policy(previous)
+            logger.debug("run_application() retourne | politique précédente restaurée")

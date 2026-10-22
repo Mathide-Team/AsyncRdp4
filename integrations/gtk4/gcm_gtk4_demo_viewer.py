@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from asyncrdp import Client as RdpClient
 
 
+@traced
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("host")
@@ -78,17 +79,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--domain", default=None, help="Domaine Active Directory (CORP\\utilisateur)")
     p.add_argument("--width", type=int, default=1280)
     p.add_argument("--height", type=int, default=800)
-    p.add_argument("--no-clipboard", action="store_true",
-                    help="Désactive la redirection presse-papier (activée par défaut)")
-    p.add_argument("--drive", action="append", default=[], metavar="NOM:CHEMIN",
-                    help="Redirige un dossier local sous ce nom côté serveur ; répétable")
-    p.add_argument("--ignore-certificate", action="store_true",
-                    help="Ignore la vérification du certificat serveur (dev/lab uniquement, "
-                         "jamais en production)")
+    p.add_argument(
+        "--no-clipboard", action="store_true", help="Désactive la redirection presse-papier (activée par défaut)"
+    )
+    p.add_argument(
+        "--drive",
+        action="append",
+        default=[],
+        metavar="NOM:CHEMIN",
+        help="Redirige un dossier local sous ce nom côté serveur ; répétable",
+    )
+    p.add_argument(
+        "--ignore-certificate",
+        action="store_true",
+        help="Ignore la vérification du certificat serveur (dev/lab uniquement, jamais en production)",
+    )
     p.add_argument("--log-level", default="INFO", choices=["TRACE", "DEBUG", "INFO", "WARNING", "ERROR"])
     return p.parse_args(argv)
 
 
+@traced
 def build_rdp_options(args: argparse.Namespace) -> asyncrdp.RdpOptions:
     """Traduit les arguments CLI en RdpOptions — séparé de parse_args() pour
     rester testable sans réanalyser une ligne de commande (voir
@@ -140,6 +150,7 @@ class DemoApp(Gtk.Application):
         self._background_tasks: set[asyncio.Task] = set()
         self.connect("activate", self._on_activate)
 
+    @traced
     def _spawn(self, coro) -> asyncio.Task:
         task = asyncio.ensure_future(coro)
         self._background_tasks.add(task)
@@ -169,8 +180,12 @@ class DemoApp(Gtk.Application):
         assert self._session is not None
         try:
             await self._session.connect(
-                self._args.host, self._args.port, self._args.username, self._args.password,
-                domain=self._args.domain, options=self._options,
+                self._args.host,
+                self._args.port,
+                self._args.username,
+                self._args.password,
+                domain=self._args.domain,
+                options=self._options,
             )
         except asyncrdp.FreeRDPError as exc:
             logger.error("Échec de connexion : {}", exc)
@@ -200,6 +215,7 @@ class DemoApp(Gtk.Application):
         self.quit()
 
 
+@traced
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 

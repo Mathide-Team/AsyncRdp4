@@ -23,8 +23,10 @@ import sys
 from loguru import logger
 
 import asyncrdp
+from asyncrdp.tracing import traced
 
 
+@traced
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("host")
@@ -36,13 +38,16 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--height", type=int, default=800)
     p.add_argument("--frames", type=int, default=5, help="Nombre de frames à attendre avant succès")
     p.add_argument("--timeout", type=float, default=15.0, help="Délai max d'attente des frames (s)")
-    p.add_argument("--ignore-certificate", action="store_true",
-                    help="Ignore la vérification du certificat serveur (dev/lab uniquement, "
-                         "jamais en production)")
+    p.add_argument(
+        "--ignore-certificate",
+        action="store_true",
+        help="Ignore la vérification du certificat serveur (dev/lab uniquement, jamais en production)",
+    )
     p.add_argument("--log-level", default="DEBUG", choices=["TRACE", "DEBUG", "INFO", "WARNING", "ERROR"])
     return p.parse_args()
 
 
+@traced
 async def main() -> int:
     args = parse_args()
 
@@ -65,10 +70,12 @@ async def main() -> int:
 
     frame_count = 0
     try:
-        async with asyncrdp.connect(args.host, args.port, args.username, args.password,
-                                     domain=args.domain, options=options) as client:
+        async with asyncrdp.connect(
+            args.host, args.port, args.username, args.password, domain=args.domain, options=options
+        ) as client:
             logger.info("Connecté. Attente de {} frame(s)...", args.frames)
 
+            @traced
             async def count_frames():
                 nonlocal frame_count
                 while frame_count < args.frames:
@@ -80,8 +87,7 @@ async def main() -> int:
             try:
                 await asyncio.wait_for(count_frames(), timeout=args.timeout)
             except asyncio.TimeoutError:
-                logger.warning("Timeout en attendant les frames ({} reçues sur {})",
-                               frame_count, args.frames)
+                logger.warning("Timeout en attendant les frames ({} reçues sur {})", frame_count, args.frames)
 
             logger.info("Test terminé, déconnexion...")
     except asyncrdp.FreeRDPError as exc:

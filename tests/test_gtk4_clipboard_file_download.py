@@ -90,16 +90,18 @@ def _import_clipboard_bridge_with_stub():
     fichiers de test doivent rester exécutables indépendamment, y
     compris à la main sans pytest ni rootdir particulier)."""
     keys = (
-        "gi", "gi.repository", "asyncrdp", "asyncrdp.tracing",
-        "loguru", "gcm_gtk4_clipboard_bridge",
+        "gi",
+        "gi.repository",
+        "asyncrdp",
+        "asyncrdp.tracing",
+        "loguru",
+        "gcm_gtk4_clipboard_bridge",
     )
     saved = {key: sys.modules.get(key) for key in keys}
     try:
         fake_gi = ModuleType("gi")
         sys.modules["gi"] = fake_gi
-        stub_repository = _load_module_from_path(
-            "gi.repository", _STUB_DIR / "gi" / "repository.py"
-        )
+        stub_repository = _load_module_from_path("gi.repository", _STUB_DIR / "gi" / "repository.py")
         fake_gi.repository = stub_repository
         stub_asyncrdp = _load_module_from_path("asyncrdp", _STUB_DIR / "asyncrdp.py")
         # Même correctif que dans test_gtk4_bridges.py::_import_bridges_with_stub
@@ -108,9 +110,7 @@ def _import_clipboard_bridge_with_stub():
         # fichier source plutôt que de le stubber, pour que ce fichier reste
         # exécutable isolément (cf. docstring, invocation directe sans le
         # reste de la suite).
-        _load_module_from_path(
-            "asyncrdp.tracing", _REPO_ROOT / "src" / "asyncrdp" / "tracing.py"
-        )
+        _load_module_from_path("asyncrdp.tracing", _REPO_ROOT / "src" / "asyncrdp" / "tracing.py")
 
         try:
             import loguru  # noqa: F401 - juste pour tester la disponibilité
@@ -276,10 +276,7 @@ def test_download_parallelizes_with_a_bound_of_four():
     que de partir en même temps que les quatre premiers ou en pure
     séquence."""
     names = [f"f{i}.txt" for i in range(6)]
-    files = [
-        RemoteFileInfo(index=i, name=name, size=1, is_directory=False)
-        for i, name in enumerate(names)
-    ]
+    files = [RemoteFileInfo(index=i, name=name, size=1, is_directory=False) for i, name in enumerate(names)]
     contents = dict.fromkeys(range(6), b"x")
     bridge, rdp, _spy = _make_bridge(contents)
 
@@ -319,11 +316,7 @@ def _run_all() -> None:
     """Petit exécuteur maison : permet de lancer ce fichier avec
     `python3 tests/test_gtk4_clipboard_file_download.py` dans un
     environnement sans pytest installé (ex. sandbox sans accès réseau)."""
-    tests = [
-        (name, fn)
-        for name, fn in sorted(globals().items())
-        if name.startswith("test_") and callable(fn)
-    ]
+    tests = [(name, fn) for name, fn in sorted(globals().items()) if name.startswith("test_") and callable(fn)]
     failures = []
     for name, fn in tests:
         try:

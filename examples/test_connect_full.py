@@ -13,8 +13,10 @@ import sys
 from loguru import logger
 
 import asyncrdp
+from asyncrdp.tracing import traced
 
 
+@traced
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("host")
@@ -26,12 +28,16 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--height", type=int, default=800)
     p.add_argument("--resize-width", type=int, default=1024, help="Résolution cible du test de resize")
     p.add_argument("--resize-height", type=int, default=640)
-    p.add_argument("--ignore-certificate", action="store_true",
-                    help="Ignore la vérification du certificat serveur (dev/lab uniquement)")
+    p.add_argument(
+        "--ignore-certificate",
+        action="store_true",
+        help="Ignore la vérification du certificat serveur (dev/lab uniquement)",
+    )
     p.add_argument("--log-level", default="DEBUG", choices=["TRACE", "DEBUG", "INFO", "WARNING", "ERROR"])
     return p.parse_args()
 
 
+@traced
 async def main() -> int:
     args = parse_args()
 
@@ -47,13 +53,15 @@ async def main() -> int:
 
     results: dict[str, bool] = {}
 
-    async with asyncrdp.connect(args.host, args.port, args.username, args.password,
-                                 domain=args.domain, options=options) as client:
+    async with asyncrdp.connect(
+        args.host, args.port, args.username, args.password, domain=args.domain, options=options
+    ) as client:
         logger.info("=== 1. Frames de base ===")
         try:
             await asyncio.wait_for(client.get_frame(), timeout=10.0)
             results["frames"] = True
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as exc:
+            logger.debug("délai dépassé sur les frames : {}", exc)
             results["frames"] = False
         logger.info("Frames : {}", "OK" if results["frames"] else "ÉCHEC")
 
@@ -76,7 +84,8 @@ async def main() -> int:
             try:
                 await asyncio.wait_for(client.get_frame(), timeout=5.0)
                 got_frame_after_resize = True
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as exc:
+                logger.debug("délai dépassé après resize : {}", exc)
                 got_frame_after_resize = False
             results["resize"] = resize_ok and got_frame_after_resize
             logger.info("Résolution après resize : {}", client.frame_size)

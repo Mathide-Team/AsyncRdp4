@@ -124,10 +124,7 @@ def _format_call(func: Callable[..., Any], args: tuple, kwargs: dict) -> str:
 
     if bound is None:
         parts = [_safe_repr(a) for a in args]
-        parts.extend(
-            f"{k}={'<redacted>' if _is_sensitive(k) else _safe_repr(v)}"
-            for k, v in kwargs.items()
-        )
+        parts.extend(f"{k}={'<redacted>' if _is_sensitive(k) else _safe_repr(v)}" for k, v in kwargs.items())
         return ", ".join(parts)
 
     parts: list[str] = []
@@ -145,10 +142,7 @@ def _format_call(func: Callable[..., Any], args: tuple, kwargs: dict) -> str:
             parts.extend(_safe_repr(v) for v in value)
             continue
         if param.kind is inspect.Parameter.VAR_KEYWORD:
-            parts.extend(
-                f"{k}={'<redacted>' if _is_sensitive(k) else _safe_repr(v)}"
-                for k, v in value.items()
-            )
+            parts.extend(f"{k}={'<redacted>' if _is_sensitive(k) else _safe_repr(v)}" for k, v in value.items())
             continue
         rendered = "<redacted>" if _is_sensitive(name) else _safe_repr(value)
         parts.append(f"{name}={rendered}")
@@ -168,9 +162,7 @@ def traced(func: F) -> F:
 
         @functools.wraps(func)
         async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
-            logger.opt(lazy=True).trace(
-                "→ {} ({})", lambda: qualname, lambda: _format_call(func, args, kwargs)
-            )
+            logger.opt(lazy=True).trace("→ {} ({})", lambda: qualname, lambda: _format_call(func, args, kwargs))
             start = time.perf_counter()
             try:
                 result = await func(*args, **kwargs)
@@ -183,14 +175,18 @@ def traced(func: F) -> F:
                 elapsed_ms = (time.perf_counter() - start) * 1000
                 logger.opt(lazy=True).trace(
                     "✗ {} a levé {} après {:.3f} ms",
-                    lambda: qualname, lambda: exc_repr, lambda: elapsed_ms,
+                    lambda: qualname,
+                    lambda: exc_repr,
+                    lambda: elapsed_ms,
                 )
                 raise
             else:
                 elapsed_ms = (time.perf_counter() - start) * 1000
                 logger.opt(lazy=True).trace(
                     "← {} -> {} ({:.3f} ms)",
-                    lambda: qualname, lambda: _safe_repr(result), lambda: elapsed_ms,
+                    lambda: qualname,
+                    lambda: _safe_repr(result),
+                    lambda: elapsed_ms,
                 )
                 return result
 
@@ -198,9 +194,7 @@ def traced(func: F) -> F:
 
     @functools.wraps(func)
     def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
-        logger.opt(lazy=True).trace(
-            "→ {} ({})", lambda: qualname, lambda: _format_call(func, args, kwargs)
-        )
+        logger.opt(lazy=True).trace("→ {} ({})", lambda: qualname, lambda: _format_call(func, args, kwargs))
         start = time.perf_counter()
         try:
             result = func(*args, **kwargs)
@@ -210,14 +204,18 @@ def traced(func: F) -> F:
             elapsed_ms = (time.perf_counter() - start) * 1000
             logger.opt(lazy=True).trace(
                 "✗ {} a levé {} après {:.3f} ms",
-                lambda: qualname, lambda: exc_repr, lambda: elapsed_ms,
+                lambda: qualname,
+                lambda: exc_repr,
+                lambda: elapsed_ms,
             )
             raise
         else:
             elapsed_ms = (time.perf_counter() - start) * 1000
             logger.opt(lazy=True).trace(
                 "← {} -> {} ({:.3f} ms)",
-                lambda: qualname, lambda: _safe_repr(result), lambda: elapsed_ms,
+                lambda: qualname,
+                lambda: _safe_repr(result),
+                lambda: elapsed_ms,
             )
             return result
 
