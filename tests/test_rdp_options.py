@@ -128,10 +128,12 @@ def test_rdp_options_multimonitor_bounding_box_inputs():
     le calcul de la bounding box (largeur/hauteur totales) se fait dans
     RdpOptions._apply(), testé en intégration (nécessite un contexte
     FreeRDP réel)."""
-    opts = asyncrdp.RdpOptions(monitors=[
-        asyncrdp.MonitorDef(0, 0, 1280, 800, is_primary=True),
-        asyncrdp.MonitorDef(1280, 0, 1024, 768),
-    ])
+    opts = asyncrdp.RdpOptions(
+        monitors=[
+            asyncrdp.MonitorDef(0, 0, 1280, 800, is_primary=True),
+            asyncrdp.MonitorDef(1280, 0, 1024, 768),
+        ]
+    )
     assert len(opts.monitors) == 2
     total_width = max(m.x + m.width for m in opts.monitors)
     total_height = max(m.y + m.height for m in opts.monitors)

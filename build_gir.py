@@ -34,6 +34,10 @@ import os
 import subprocess
 import sys
 
+from loguru import logger  # noqa: F401 — logger de module exigé (SOCLE §8)
+
+from asyncrdp.tracing import traced
+
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _NATIVE_DIR = os.path.join(_HERE, "integrations", "gtk4", "native")
 _BUILD_DIR = os.path.join(_NATIVE_DIR, "_build")
@@ -48,11 +52,10 @@ _HEADER = os.path.join(_NATIVE_DIR, "asyncrdp-image-provider.h")
 def _pkg_config(flag):
     # Une seule dépendance pkg-config (gtk4) : elle tire déjà glib/gobject/
     # gio/gdk-pixbuf/cairo en transitif, comme dans le reste du projet.
-    return subprocess.run(
-        ["pkg-config", flag, "gtk4"], capture_output=True, text=True, check=True
-    ).stdout.split()
+    return subprocess.run(["pkg-config", flag, "gtk4"], capture_output=True, text=True, check=True).stdout.split()
 
 
+@traced
 def main():
     for src in (_SOURCE, _HEADER):
         if not os.path.isfile(src):
@@ -69,8 +72,7 @@ def main():
 
     print("== 1. Compilation de la bibliothèque partagée ==")
     subprocess.run(
-        ["gcc", "-shared", "-fPIC", "-Wall", "-Wextra", "-Werror",
-         *cflags, _SOURCE, "-o", so_path, *libs],
+        ["gcc", "-shared", "-fPIC", "-Wall", "-Wextra", "-Werror", *cflags, _SOURCE, "-o", so_path, *libs],
         check=True,
     )
 
@@ -81,22 +83,27 @@ def main():
     # options courtes -m qui lui sont destinées (« no such option: -m »).
     # --pkg délègue l'appel à pkg-config en interne, sans ce conflit.
     subprocess.run(
-        ["g-ir-scanner",
-         f"--namespace={_NAMESPACE}",
-         f"--nsversion={_NSVERSION}",
-         "--include=Gtk-4.0",
-         "--pkg=gtk4",
-         # Préfixe C réel des symboles (Asyncrdp/asyncrdp_), distinct du nom
-         # de namespace GI (AsyncrdpClipboard) — sans ceci, g-ir-scanner
-         # rejette silencieusement tous les symboles comme hors namespace
-         # (« Unknown namespace for symbol ») et le .gir sort vide.
-         "--identifier-prefix=Asyncrdp",
-         "--symbol-prefix=asyncrdp",
-         "--library-path", _BUILD_DIR,
-         f"--library={_LIBNAME}",
-         "--no-libtool",
-         "-o", gir_path,
-         _HEADER, _SOURCE],
+        [
+            "g-ir-scanner",
+            f"--namespace={_NAMESPACE}",
+            f"--nsversion={_NSVERSION}",
+            "--include=Gtk-4.0",
+            "--pkg=gtk4",
+            # Préfixe C réel des symboles (Asyncrdp/asyncrdp_), distinct du nom
+            # de namespace GI (AsyncrdpClipboard) — sans ceci, g-ir-scanner
+            # rejette silencieusement tous les symboles comme hors namespace
+            # (« Unknown namespace for symbol ») et le .gir sort vide.
+            "--identifier-prefix=Asyncrdp",
+            "--symbol-prefix=asyncrdp",
+            "--library-path",
+            _BUILD_DIR,
+            f"--library={_LIBNAME}",
+            "--no-libtool",
+            "-o",
+            gir_path,
+            _HEADER,
+            _SOURCE,
+        ],
         check=True,
         cwd=_NATIVE_DIR,
     )

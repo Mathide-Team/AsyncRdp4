@@ -40,6 +40,7 @@ from asyncrdp.tracing import traced
 _NATIVE_BUILD_DIR = Path(__file__).resolve().parent / "native" / "_build"
 
 
+@traced
 def _load_native_image_provider():
     """
     Charge AsyncrdpClipboard.ImageContentProvider si build_gir.py a été
@@ -153,8 +154,8 @@ def _pixbuf_to_dib(pixbuf: GdkPixbuf.Pixbuf) -> bytes:
     raw = raw[: rowstride * height].reshape(height, rowstride)
     rgb = raw[:, : width * n_channels].reshape(height, width, n_channels)[:, :, :3]
 
-    bgr = rgb[:, :, ::-1]      # RGB -> BGR
-    bgr = np.flipud(bgr)       # DIB : lignes de bas en haut
+    bgr = rgb[:, :, ::-1]  # RGB -> BGR
+    bgr = np.flipud(bgr)  # DIB : lignes de bas en haut
 
     row_size = ((width * 3 + 3) // 4) * 4
     body = np.zeros((height, row_size), dtype=np.uint8)  # initialisé à 0 : gère le padding de fin de ligne
@@ -162,15 +163,17 @@ def _pixbuf_to_dib(pixbuf: GdkPixbuf.Pixbuf) -> bytes:
 
     header = struct.pack(
         "<IiiHHIIiiII",
-        40,         # biSize (BITMAPINFOHEADER)
-        width,      # biWidth
-        height,     # biHeight (positif = bottom-up)
-        1,          # biPlanes
-        24,         # biBitCount
-        0,          # biCompression (BI_RGB)
+        40,  # biSize (BITMAPINFOHEADER)
+        width,  # biWidth
+        height,  # biHeight (positif = bottom-up)
+        1,  # biPlanes
+        24,  # biBitCount
+        0,  # biCompression (BI_RGB)
         body.size,  # biSizeImage
-        0, 0,       # biXPelsPerMeter, biYPelsPerMeter
-        0, 0,       # biClrUsed, biClrImportant
+        0,
+        0,  # biXPelsPerMeter, biYPelsPerMeter
+        0,
+        0,  # biClrUsed, biClrImportant
     )
     return header + body.tobytes()
 
@@ -315,6 +318,7 @@ class ClipboardBridge:
     async def _download_and_set_files(self, files: list[RemoteFileInfo]) -> None:
         semaphore = asyncio.Semaphore(4)
 
+        @traced
         async def fetch_one(info: RemoteFileInfo) -> str | None:
             # info.name utilise '\\' comme séparateur (convention
             # MS-RDPECLIP) — à convertir vers le séparateur local.
@@ -352,8 +356,7 @@ class ClipboardBridge:
         # déjà sur disque en dessous, GTK4/Nautilus s'attend à recevoir le
         # dossier racine, pas chacun de ses fichiers individuellement.
         local_paths = [
-            path for info, path in zip(files, results, strict=True)
-            if path is not None and "\\" not in info.name
+            path for info, path in zip(files, results, strict=True) if path is not None and "\\" not in info.name
         ]
         if not local_paths:
             return
@@ -376,8 +379,7 @@ class ClipboardBridge:
         formats = clipboard.get_formats()
         if formats.contain_gtype(Gdk.FileList):
             logger.debug("Clipboard bridge: changement local détecté (fichiers)")
-            clipboard.read_value_async(Gdk.FileList, GLib.PRIORITY_DEFAULT, None,
-                                        self._on_local_files_read)
+            clipboard.read_value_async(Gdk.FileList, GLib.PRIORITY_DEFAULT, None, self._on_local_files_read)
         elif formats.contain_gtype(Gdk.Texture):
             logger.debug("Clipboard bridge: changement local détecté (image)")
             clipboard.read_texture_async(None, self._on_local_texture_read)

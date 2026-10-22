@@ -66,9 +66,7 @@ def _discover_modules() -> dict[str, Path]:
     return modules
 
 
-def _resolve_import(
-    node: ast.AST, current_module: str, known: set[str]
-) -> set[str]:
+def _resolve_import(node: ast.AST, current_module: str, known: set[str]) -> set[str]:
     """Noms de modules internes (parmi `known`) réellement importés par
     ce noeud `Import`/`ImportFrom`, résolution des imports relatifs
     (`level`) comprise."""
@@ -233,7 +231,10 @@ def test_import_graph_matches_known_dependencies():
     # leur présence ici malgré l'absence de dépendance réelle à
     # l'exécution).
     assert graph["gcm_gtk4_rdp_session"] == {
-        "gcm_gtk4_clipboard_bridge", "gcm_gtk4_display_bridge", "asyncrdp", "asyncrdp.tracing",
+        "gcm_gtk4_clipboard_bridge",
+        "gcm_gtk4_display_bridge",
+        "asyncrdp",
+        "asyncrdp.tracing",
     }
     # gcm_gtk4_demo_viewer (2026-09-18) est l'application hôte de
     # référence : dépend réellement de gcm_gtk4_display_bridge (RdpView),
@@ -242,8 +243,11 @@ def test_import_graph_matches_known_dependencies():
     # + gcm_gtk4_asyncio (2026-10-11, issue #41) : intégration asyncio/GLib
     # (gi.events, gbulb en repli), feuille du graphe.
     assert graph["gcm_gtk4_demo_viewer"] == {
-        "gcm_gtk4_display_bridge", "gcm_gtk4_rdp_session", "gcm_gtk4_asyncio",
-        "asyncrdp", "asyncrdp.tracing",
+        "gcm_gtk4_display_bridge",
+        "gcm_gtk4_rdp_session",
+        "gcm_gtk4_asyncio",
+        "asyncrdp",
+        "asyncrdp.tracing",
     }
     assert graph["gcm_gtk4_asyncio"] == set()
 
@@ -262,11 +266,7 @@ def _run_all() -> None:
     """Petit exécuteur maison : permet de lancer ce fichier avec
     `python3 tests/test_no_circular_imports.py` dans un environnement
     sans pytest installé (ex. sandbox sans accès réseau)."""
-    tests = [
-        (name, fn)
-        for name, fn in sorted(globals().items())
-        if name.startswith("test_") and callable(fn)
-    ]
+    tests = [(name, fn) for name, fn in sorted(globals().items()) if name.startswith("test_") and callable(fn)]
     failures = []
     for name, fn in tests:
         try:

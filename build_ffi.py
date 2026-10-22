@@ -154,12 +154,10 @@ ffibuilder.cdef("""
 # freerdp-client3 est nécessaire en plus de freerdp3 pour les headers
 # <freerdp/client/cliprdr.h> (API côté client, distincte de l'API core).
 pkg_cflags = subprocess.run(
-    ["pkg-config", "--cflags", "freerdp3", "freerdp-client3", "winpr3"],
-    capture_output=True, text=True, check=True
+    ["pkg-config", "--cflags", "freerdp3", "freerdp-client3", "winpr3"], capture_output=True, text=True, check=True
 ).stdout.split()
 pkg_libs = subprocess.run(
-    ["pkg-config", "--libs", "freerdp3", "freerdp-client3", "winpr3"],
-    capture_output=True, text=True, check=True
+    ["pkg-config", "--libs", "freerdp3", "freerdp-client3", "winpr3"], capture_output=True, text=True, check=True
 ).stdout.split()
 
 ffibuilder.set_source(

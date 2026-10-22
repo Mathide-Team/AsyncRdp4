@@ -121,8 +121,12 @@ def test_usb_has_rw_access_none_when_node_missing():
 
 def test_usb_device_info_str_prefers_product_name():
     dev = UsbDeviceInfo(
-        vendor_id=0x0483, product_id=0x5741, bus=1, address=2,
-        manufacturer="STMicroelectronics", product="Virtual COM Port",
+        vendor_id=0x0483,
+        product_id=0x5741,
+        bus=1,
+        address=2,
+        manufacturer="STMicroelectronics",
+        product="Virtual COM Port",
     )
     assert "Virtual COM Port" in str(dev)
     assert "0483:5741" in str(dev)
@@ -133,8 +137,17 @@ class _FakeUsbError(Exception):
 
 
 class _FakeDevice:
-    def __init__(self, vendor_id, product_id, bus, address, manufacturer=None, product=None,
-                 serial_number=None, raise_on_string_read=False):
+    def __init__(
+        self,
+        vendor_id,
+        product_id,
+        bus,
+        address,
+        manufacturer=None,
+        product=None,
+        serial_number=None,
+        raise_on_string_read=False,
+    ):
         self.idVendor = vendor_id
         self.idProduct = product_id
         self.bus = bus
@@ -189,12 +202,19 @@ def _install_fake_pyusb(monkeypatch, devices):
 
 def test_list_usb_devices_pure_logic_with_stub(monkeypatch):
     ok_device = _FakeDevice(
-        vendor_id=0x0483, product_id=0x5741, bus=1, address=5,
-        manufacturer="STMicroelectronics", product="Virtual COM Port",
+        vendor_id=0x0483,
+        product_id=0x5741,
+        bus=1,
+        address=5,
+        manufacturer="STMicroelectronics",
+        product="Virtual COM Port",
         serial_number="ABC123",
     )
     device_without_permission = _FakeDevice(
-        vendor_id=0x1234, product_id=0xABCD, bus=1, address=6,
+        vendor_id=0x1234,
+        product_id=0xABCD,
+        bus=1,
+        address=6,
         raise_on_string_read=True,
     )
     _install_fake_pyusb(monkeypatch, [ok_device, device_without_permission])

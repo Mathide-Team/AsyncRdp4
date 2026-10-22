@@ -34,8 +34,10 @@ import sys
 from loguru import logger
 
 import asyncrdp
+from asyncrdp.tracing import traced
 
 
+@traced
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--host", default="127.0.0.1")
@@ -46,8 +48,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--serial-path", default="/dev/ttyS0")
     p.add_argument("--parallel-path", default="/dev/lp0")
     p.add_argument("--drive-path", default="/tmp", help="Témoin positif (type accepté partout)")
-    p.add_argument("--settle", type=float, default=6.0,
-                   help="Secondes d'attente après connexion, pour laisser l'échange RDPDR aboutir")
+    p.add_argument(
+        "--settle",
+        type=float,
+        default=6.0,
+        help="Secondes d'attente après connexion, pour laisser l'échange RDPDR aboutir",
+    )
     p.add_argument("--log-level", default="INFO", choices=["TRACE", "DEBUG", "INFO", "WARNING", "ERROR"])
     return p.parse_args()
 
@@ -80,6 +86,7 @@ def build_probe_options(serial_path: str, parallel_path: str, drive_path: str) -
     )
 
 
+@traced
 async def main() -> int:
     args = parse_args()
 
@@ -101,6 +108,7 @@ async def main() -> int:
             await asyncio.sleep(args.settle)
     except Exception as exc:  # script de diagnostic : on veut voir l'erreur brute, quelle qu'elle soit
         print(f"PROBE|CONNECT_FAILED|{exc!r}")
+        logger.debug("connect() a échoué : {}", exc)
         return 1
 
     print("PROBE|DISCONNECTED")

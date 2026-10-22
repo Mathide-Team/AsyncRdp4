@@ -29,14 +29,16 @@ import pytest
 
 _NATIVE_TYPELIB = (
     Path(__file__).resolve().parent.parent
-    / "integrations" / "gtk4" / "native" / "_build" / "AsyncrdpClipboard-1.0.typelib"
+    / "integrations"
+    / "gtk4"
+    / "native"
+    / "_build"
+    / "AsyncrdpClipboard-1.0.typelib"
 )
 
 
 def pytest_configure(config):
-    config.addinivalue_line(
-        "markers", "integration: nécessite un vrai serveur RDP (voir ASYNCRDP_TEST_HOST)"
-    )
+    config.addinivalue_line("markers", "integration: nécessite un vrai serveur RDP (voir ASYNCRDP_TEST_HOST)")
     config.addinivalue_line(
         "markers", "gtk4_live: nécessite un vrai GTK4 + un vrai serveur X (voir ASYNCRDP_TEST_GTK4)"
     )

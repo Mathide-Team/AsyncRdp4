@@ -86,8 +86,8 @@ class RdpView(Gtk.Widget):
                 raw = await self._rdp.get_frame()
                 self._remote_size = self._rdp.frame_size or self._remote_size
                 self._show_frame(raw, self._remote_size)
-        except asyncio.CancelledError:
-            pass
+        except asyncio.CancelledError as exc:
+            logger.debug("boucle d'affichage annulée : {}", exc)
 
     @traced
     def _show_frame(self, raw: bytes, size: tuple[int, int]) -> None:
@@ -208,9 +208,18 @@ class RdpView(Gtk.Widget):
         Gdk.KEY_Control_L: "ctrl",
         Gdk.KEY_Alt_L: "alt",
         Gdk.KEY_Caps_Lock: "capslock",
-        Gdk.KEY_F1: "f1", Gdk.KEY_F2: "f2", Gdk.KEY_F3: "f3", Gdk.KEY_F4: "f4",
-        Gdk.KEY_F5: "f5", Gdk.KEY_F6: "f6", Gdk.KEY_F7: "f7", Gdk.KEY_F8: "f8",
-        Gdk.KEY_F9: "f9", Gdk.KEY_F10: "f10", Gdk.KEY_F11: "f11", Gdk.KEY_F12: "f12",
+        Gdk.KEY_F1: "f1",
+        Gdk.KEY_F2: "f2",
+        Gdk.KEY_F3: "f3",
+        Gdk.KEY_F4: "f4",
+        Gdk.KEY_F5: "f5",
+        Gdk.KEY_F6: "f6",
+        Gdk.KEY_F7: "f7",
+        Gdk.KEY_F8: "f8",
+        Gdk.KEY_F9: "f9",
+        Gdk.KEY_F10: "f10",
+        Gdk.KEY_F11: "f11",
+        Gdk.KEY_F12: "f12",
     }
 
     @traced
@@ -264,9 +273,7 @@ class RdpView(Gtk.Widget):
         if self._resize_timer is not None:
             self._resize_timer.cancel()
         loop = asyncio.get_event_loop()
-        self._resize_timer = loop.call_later(
-            self._RESIZE_DEBOUNCE, self._rdp.request_resize, width, height
-        )
+        self._resize_timer = loop.call_later(self._RESIZE_DEBOUNCE, self._rdp.request_resize, width, height)
 
     @traced
     def do_measure(self, orientation, for_size):

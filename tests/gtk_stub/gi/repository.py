@@ -46,6 +46,7 @@ class _AnyCall:
 # GLib
 # ---------------------------------------------------------------------
 
+
 class GLib:
     PRIORITY_DEFAULT = 0
 
@@ -70,6 +71,7 @@ class GLib:
 # ---------------------------------------------------------------------
 # Gtk
 # ---------------------------------------------------------------------
+
 
 class ContentFit:
     CONTAIN = "contain"
@@ -172,6 +174,7 @@ class Gtk:
 # ---------------------------------------------------------------------
 # Gdk
 # ---------------------------------------------------------------------
+
 
 class MemoryFormat:
     B8G8R8A8 = "B8G8R8A8"
@@ -305,6 +308,7 @@ Gdk.pixbuf_get_from_texture = staticmethod(pixbuf_get_from_texture)
 # GdkPixbuf
 # ---------------------------------------------------------------------
 
+
 class PixbufLoader:
     """Ne décode RIEN réellement (pas de vrai décodeur BMP dans le
     stub) — capture juste les octets écrits (`last_written`) pour que
@@ -345,6 +349,7 @@ class GdkPixbuf:
 # ---------------------------------------------------------------------
 # Gio
 # ---------------------------------------------------------------------
+
 
 class File(_AnyCall):
     @staticmethod
